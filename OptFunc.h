@@ -6,29 +6,29 @@
 
 namespace OPTIMIZE_LYJ
 {
-	using m3d = Eigen::Matrix3d;
-	using m33 = Eigen::Matrix3d;
+    using m3d = Eigen::Matrix3d;
+    using m33 = Eigen::Matrix3d;
     using m34 = Eigen::Matrix<double, 3, 4>;
-	using v3d = Eigen::Vector3d;
-	using v4d = Eigen::Vector4d;
+    using v3d = Eigen::Vector3d;
+    using v4d = Eigen::Vector4d;
     using v6d = Eigen::Matrix<double, 6, 1>;
-	using m2d = Eigen::Matrix2d;
-	using m22 = Eigen::Matrix2d;
-	using m23 = Eigen::Matrix<double, 2, 3>;
-	using m26 = Eigen::Matrix<double, 2, 6>;
+    using m2d = Eigen::Matrix2d;
+    using m22 = Eigen::Matrix2d;
+    using m23 = Eigen::Matrix<double, 2, 3>;
+    using m26 = Eigen::Matrix<double, 2, 6>;
     using m24 = Eigen::Matrix<double, 2, 4>;
     using m36 = Eigen::Matrix<double, 3, 6>;
     using m64 = Eigen::Matrix<double, 6, 4>;
     using m66 = Eigen::Matrix<double, 6, 6>;
-	using v2d = Eigen::Vector2d;
+    using v2d = Eigen::Vector2d;
 
-    static Eigen::Matrix3d skew_symmetric(const Eigen::Matrix3d& v)
+    static Eigen::Matrix3d skew_symmetric(const Eigen::Matrix3d &v)
     {
         Eigen::Matrix3d S;
         S << 0, -v(2), v(1), v(2), 0, -v(0), -v(1), v(0), 0;
         return S;
     }
-    static Eigen::Matrix3d NormalizeRotation(const Eigen::Matrix3d& R)
+    static Eigen::Matrix3d NormalizeRotation(const Eigen::Matrix3d &R)
     {
         Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);
         return svd.matrixU() * svd.matrixV();
@@ -50,28 +50,32 @@ namespace OPTIMIZE_LYJ
             return NormalizeRotation(res);
         }
     }
-	static v6d orth_to_plk(const v4d& orth)
-	{
-		v6d plk;
-		v3d theta = orth.head(3);
-		double phi = orth[3];
-		double s1 = sin(theta[0]);
-		double c1 = cos(theta[0]);
-		double s2 = sin(theta[1]);
-		double c2 = cos(theta[1]);
-		double s3 = sin(theta[2]);
-		double c3 = cos(theta[2]);
-		m33 R;
-		R << c2 * c3, s1* s2* c3 - c1 * s3, c1* s2* c3 + s1 * s3,
-			c2* s3, s1* s2* s3 + c1 * c3, c1* s2* s3 - s1 * c3,
-			-s2, s1* c2, c1* c2;
-		double w1 = cos(phi);
-		double w2 = sin(phi);
-		plk.head(3) = R.col(0) * w1;
-		plk.tail(3) = R.col(1) * w2;
-		return plk;
-	}
-    static v6d plk_to_pose(const v6d& plk_w, const m33& Rcw, const v3d& tcw) {
+    static v6d orth_to_plk(const v4d &orth)
+    {
+        v6d plk;
+        v3d theta = orth.head(3);
+        double phi = orth[3];
+        double s1 = sin(theta[0]);
+        double c1 = cos(theta[0]);
+        double s2 = sin(theta[1]);
+        double c2 = cos(theta[1]);
+        double s3 = sin(theta[2]);
+        double c3 = cos(theta[2]);
+        m33 R;
+        R << c2 * c3, s1 * s2 * c3 - c1 * s3, c1 * s2 * c3 + s1 * s3,
+            c2 * s3, s1 * s2 * s3 + c1 * c3, c1 * s2 * s3 - s1 * c3,
+            -s2, s1 * c2, c1 * c2;
+        // double w1 = cos(phi);
+        // double w2 = sin(phi);
+        // plk.head(3) = R.col(0) * w1;
+        // plk.tail(3) = R.col(1) * w2;
+        double d = phi;
+        line.head(3) = -R.col(0) * d;
+        line.tail(3) = R.col(1);
+        return plk;
+    }
+    static v6d plk_to_pose(const v6d &plk_w, const m33 &Rcw, const v3d &tcw)
+    {
         v3d nw = plk_w.head(3);
         v3d vw = plk_w.tail(3);
         v3d nc = Rcw * nw + skew_symmetric(tcw) * Rcw * vw;
@@ -81,7 +85,7 @@ namespace OPTIMIZE_LYJ
         plk_c.tail(3) = vc;
         return plk_c;
     }
-    static v6d orth_to_line(const v4d& orth)
+    static v6d orth_to_line(const v4d &orth)
     {
         v6d line;
 
@@ -95,24 +99,61 @@ namespace OPTIMIZE_LYJ
         double s3 = std::sin(theta[2]);
         double c3 = std::cos(theta[2]);
         m33 R;
-        R <<
-            c2 * c3, s1* s2* c3 - c1 * s3, c1* s2* c3 + s1 * s3,
-            c2* s3, s1* s2* s3 + c1 * c3, c1* s2* s3 - s1 * c3,
-            -s2, s1* c2, c1* c2;
+        R << c2 * c3, s1 * s2 * c3 - c1 * s3, c1 * s2 * c3 + s1 * s3,
+            c2 * s3, s1 * s2 * s3 + c1 * c3, c1 * s2 * s3 - s1 * c3,
+            -s2, s1 * c2, c1 * c2;
 
-        double w1 = std::cos(phi);
-        double w2 = std::sin(phi);
-        double d = w1 / w2;      // 原点到直线的距离
+        // double w1 = std::cos(phi);
+        // double w2 = std::sin(phi);
+        // double d = w1 / w2; // 原点到直线的距离
+        double d = phi;
 
         line.head(3) = -R.col(2) * d;
         line.tail(3) = R.col(1);
 
         return line;
     }
+    static v4d line_to_orth(const v3d &p, const v3d &v)
+    {
+        v4d orth;
+        v3d n = p.cross(v);
+        v3d u1 = n / n.norm();
+        v3d u2 = v / v.norm();
+        v3d u3 = u1.cross(u2);
+        orth[0] = std::atan2(u2(2), u3(2));
+        orth[1] = std::asin(-u1(2));
+        orth[2] = std::atan2(u1(1), u1(0));
 
-    void cal_jac_errUV_Tcw_Pw(const Eigen::Matrix<double, 3 ,4>& Tcw, const Eigen::Matrix3d& K,
-        const Eigen::Vector3d& Pw, const Eigen::Vector2d& uv,
-        Eigen::Vector2d& err, Eigen::Matrix<double, 2, 6>& jac, const double w, const double invalidErr)
+        // v2d w(n.norm(), v.norm());
+        // w = w / w.norm();
+        // orth[3] = std::asin(w(1));
+        orth[3] = p.corss(u2).norm();
+
+        return orth;
+    }
+    // 普吕克与正交转换
+    static v4d plk_to_orth(const v3d &n, const v3d &v)
+    {
+        v4d orth;
+        v3d u1 = n / n.norm();
+        v3d u2 = v / v.norm();
+        v3d u3 = u1.cross(u2);
+        // todo:: use SO3
+        orth[0] = std::atan2(u2(2), u3(2));
+        orth[1] = std::asin(-u1(2));
+        orth[2] = std::atan2(u1(1), u1(0));
+
+        // TemVec2 w(n.norm(), v.norm());
+        // w = w / w.norm();
+        // orth[3] = std::asin(w(1));
+        orth[3] = n.corss(v).norm();
+
+        return orth;
+    }
+
+    void cal_jac_errUV_Tcw_Pw(const Eigen::Matrix<double, 3, 4> &Tcw, const Eigen::Matrix3d &K,
+                              const Eigen::Vector3d &Pw, const Eigen::Vector2d &uv,
+                              Eigen::Vector2d &err, Eigen::Matrix<double, 2, 6> &jac, const double w, const double invalidErr)
     {
         Eigen::Vector3d Pc = Tcw * Pw;
         err(0) = uv(0) - K(0, 0) * Pc(0) / Pc(2) - K(0, 2);
@@ -136,8 +177,8 @@ namespace OPTIMIZE_LYJ
         */
         jac.setZero();
         Eigen::Matrix<double, 2, 3> dedPc;
-        dedPc << -1 * K(0, 0) / Pc(2), 0, K(0, 0)* Pc(0) / (Pc(2) * Pc(2)),
-            0, -1 * K(1, 1) / Pc(2), K(1, 1)* Pc(1) / (Pc(2) * Pc(2));
+        dedPc << -1 * K(0, 0) / Pc(2), 0, K(0, 0) * Pc(0) / (Pc(2) * Pc(2)),
+            0, -1 * K(1, 1) / Pc(2), K(1, 1) * Pc(1) / (Pc(2) * Pc(2));
         Eigen::Matrix<double, 3, 6> dPcdT;
         dPcdT.block(0, 0, 3, 3).setIdentity();
         dPcdT.block(0, 3, 3, 3) << 0, Pc(2), -1 * Pc(1),
@@ -146,7 +187,7 @@ namespace OPTIMIZE_LYJ
         jac = dedPc * dPcdT;
     }
     //---- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- - ;
-    void cal_jac_errT_T(const m34& priTcw, const m34& Tcw, v6d& err, m66& jac)
+    void cal_jac_errT_T(const m34 &priTcw, const m34 &Tcw, v6d &err, m66 &jac)
     {
         m3d Rcc = Tcw.block(0, 0, 3, 3) * priTcw.block(0, 0, 3, 3);
         v3d t = Tcw.block(0, 0, 3, 3) * priTcw.block(0, 3, 3, 1);
@@ -166,7 +207,7 @@ namespace OPTIMIZE_LYJ
         jac.block(3, 3, 3, 3) = dRdR;
     }
     //---- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- - ;
-    void cal_jac_errL2D_Tcw_L3D(const m34& Tcw, const v4d& lineOrth, v2d& err, m26& jacT, m24& jacL, const m3d& KK, const v4d& obs)
+    void cal_jac_errL2D_Tcw_L3D(const m34 &Tcw, const v4d &lineOrth, v2d &err, m26 &jacT, m24 &jacL, const m3d &KK, const v4d &obs)
     {
         v6d lineW = orth_to_plk(lineOrth);
         m3d Rcw = Tcw.block(0, 0, 3, 3);
@@ -204,7 +245,7 @@ namespace OPTIMIZE_LYJ
         jacT = jaco_e_Lc * jaco_Lc_pose;
 
         m66 invTwc;
-        invTwc << Rcw, skew_symmetric(tcw)* Rcw,
+        invTwc << Rcw, skew_symmetric(tcw) * Rcw,
             m33::Zero(), Rcw;
         v3d nw = lineW.head(3);
         v3d vw = lineW.tail(3);
@@ -225,7 +266,7 @@ namespace OPTIMIZE_LYJ
         jacL = jaco_e_Lc * invTwc * jaco_Lw_orth;
     }
     //---- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ----;
-    void update_Tcw(m34& Tcw, const v6d& detX, const double rate)
+    void update_Tcw(m34 &Tcw, const v6d &detX, const double rate)
     {
         v3d dett = detX.block(0, 0, 3, 1) * rate;
         v3d detr = detX.block(3, 0, 3, 1) * rate;
@@ -236,7 +277,7 @@ namespace OPTIMIZE_LYJ
         Tcw.block(0, 3, 3, 1) = dett + detR * tcw;
     }
     //---- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- - ;
-    void update_lineOrth(v4d& orthW, const v4d& detX, const double rate)
+    void update_lineOrth(v4d &orthW, const v4d &detX, const double rate)
     {
         v4d otrhW;
         v3d theta = orthW.block(0, 0, 3, 1);
@@ -248,9 +289,9 @@ namespace OPTIMIZE_LYJ
         double s3 = sin(theta[2]);
         double c3 = cos(theta[2]);
         m33 R;
-        R << c2 * c3, s1* s2* c3 - c1 * s3, c1* s2* c3 + s1 * s3,
-            c2* s3, s1* s2* s3 + c1 * c3, c1* s2* s3 - s1 * c3,
-            -s2, s1* c2, c1* c2;
+        R << c2 * c3, s1 * s2 * c3 - c1 * s3, c1 * s2 * c3 + s1 * s3,
+            c2 * s3, s1 * s2 * s3 + c1 * c3, c1 * s2 * s3 - s1 * c3,
+            -s2, s1 * c2, c1 * c2;
         double w1 = phi;
         double w2 = 1;
         // double w1 = cos(phi);
