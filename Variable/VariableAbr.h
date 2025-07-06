@@ -41,11 +41,14 @@ namespace OPTIMIZE_LYJ
         virtual int getDim() const = 0;
         virtual int getTangentDim() const = 0;
         virtual bool update(T *_detX) = 0;
+        inline bool isFixed() const { return m_status == 1; }
+        inline void setFixed(bool _fixed) { m_status = (char)_fixed; }
 
     protected:
-        T *m_data = nullptr;
+        T *m_data = nullptr; // 列为主
         const uint64_t m_vId = UINT64_MAX;
         const OptVarType m_type = VAR_DEAULT;
+        char m_status = 0; // 0:待优化，1:固定，其他预留，后续可以把每一位单独作为状态位
     };
 
     template <typename T, int DIM, int TANDIM>

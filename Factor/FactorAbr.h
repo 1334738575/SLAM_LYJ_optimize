@@ -18,6 +18,8 @@ namespace OPTIMIZE_LYJ
         FACTOR_UV_T3DPOINT3D_WITH_PLANE3D,
         FACTOR_PLANE3D_T3D_WITH_UV,
         FACTOR_T3D_T3DIMU,
+        FACTOR_T3D_T3D,
+        FACTOR_RELT3D_T3D_T3D,
         FACTOR_UNDEFINE_0 = 100,
         FACTOR_UNDEFINE_1,
         FACTOR_UNDEFINE_2
@@ -40,11 +42,13 @@ namespace OPTIMIZE_LYJ
         inline const int getVNum() const { return m_vDims.size(); }
         const std::vector<int> &getVDims() const { return m_vDims; };
 
+        void setEnable(bool _enable) { m_enable = _enable ? 1 : 0; }
+        bool isEnable() const { return m_enable == 1;}
         bool checkVDims(OptVarAbr<T> **_values) const
         {
             for (size_t i = 0; i < m_vDims.size(); ++i)
             {
-                if (m_vDims[i] != _values[i]->getDim())
+                if (m_vDims[i] != _values[i]->getTangentDim())
                     return false;
             }
             return true;
@@ -56,6 +60,7 @@ namespace OPTIMIZE_LYJ
         const OptFactorType m_type = FACTOR_DEAULT;
         // T* m_err = nullptr;
         std::vector<int> m_vDims;
+        char m_enable = 1;
     };
 
     template <typename T, int EDIM, int... VDIMS>

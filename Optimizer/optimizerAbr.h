@@ -177,6 +177,20 @@ namespace OPTIMIZE_LYJ
 			return true;
 		}
 
+
+
+		static bool checkEnable(const std::vector<std::shared_ptr<OptVarAbr<T>>> _vars, const Factor2Var& _factor2Vars, std::shared_ptr<OptFactorAbr<T>> _factor)
+		{
+			int connectCnt = _factor2Vars.size();
+			bool isEnable = false;
+			for (int j = 0; j < connectCnt; ++j) {
+				if (!_vars[_factor2Vars.connectId(j)]->isFixed())
+					isEnable = true;
+			}
+			_factor->setEnable(isEnable);
+			return isEnable;
+		}
+
 	protected:
 		int m_maxIterNum = 30;
 		T m_minErrTh = 1e-6;

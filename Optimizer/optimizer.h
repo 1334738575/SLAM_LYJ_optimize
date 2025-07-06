@@ -46,7 +46,6 @@ namespace OPTIMIZE_LYJ
 
 		bool updateX() override;
 
-
 	private:
 		Eigen::SparseMatrix<double> m_A;
 		Eigen::VectorXd m_B;
