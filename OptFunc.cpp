@@ -211,7 +211,7 @@ namespace OPTIMIZE_LYJ
             jac.block(0, 0, 3, 3) = dtdt;
             m33 dtdR = skew_symmetric(t);
             jac.block(0, 3, 3, 1) = -1 * dtdR;
-            m33 dRdR = m33::Identity() + (1 - cos(theta)) * (a * a.transpose() - m33::Identity()) - sin(theta) * skew_symmetric(a);
+            m33 dRdR = m33::Identity() + (1 - cos(theta)) * (a * a.transpose() - m33::Identity()) + sin(theta) * skew_symmetric(a);
             jac.block(3, 3, 3, 3) = dRdR;
         }
         //---- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- - ;

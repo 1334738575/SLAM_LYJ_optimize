@@ -152,7 +152,7 @@ namespace OPTIMIZE_LYJ
             Tpri.block(0, 3, 3, 1) = Eigen::Map<const Eigen::Vector3d>(m_obs + 9, 3);
             // Eigen::Matrix<double, 6, 6> jac = OPTIMIZE_BASE::compute_prior_jacobian(T, Tpri, err);
             Eigen::Matrix<double, 6, 6> jac;
-            OPTIMIZE_BASE::cal_jac_errT_T(T, Tpri, err, jac);
+            OPTIMIZE_BASE::cal_jac_errT_T(Tpri, T, err, jac);
             memcpy(_err, err.data(), sizeof(double) * 6);
             if (_jac[0])
             {
