@@ -136,6 +136,9 @@ namespace OPTIMIZE_LYJ
         using m66 = Eigen::Matrix<double, 6, 6>;
 
         void cal_jac_errT_T(const m34 &priTwc, const m34 &Twc, v6d &err, m66 &jac);
+        void cal_jac_errUV_Tcw_Pw(const m34& Twc, const m33& K, const v3d& Pw, const v2d& uv,
+            v2d& err, m26& jacUV_Twc, m23& jac_UV_Pw);
+        void cal_jac_errPlane_Pw(const v4d& planew, const v3d& Pw, double& err, v3d& jac);
     }
 }
 

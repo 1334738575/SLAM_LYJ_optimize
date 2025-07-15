@@ -22,6 +22,7 @@ namespace OPTIMIZE_LYJ
             {
                 m_data[i] += _detX[i];
             }
+            std::cout << *this << std::endl;
             return true;
         }
         friend std::ostream &operator<<(std::ostream &os, const OptVarPoint3d &cls)

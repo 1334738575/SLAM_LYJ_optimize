@@ -242,6 +242,125 @@ namespace OPTIMIZE_LYJ
         double *m_obs = nullptr;
     };
 
+
+    class OptFactorPlane_Point3d : public OptFactor<double, 1, 3>
+    {
+    public:
+        OptFactorPlane_Point3d(const uint64_t _id) : OptFactor<double, 1, 3>(_id, OptFactorType::FACTOR_PLANE3D_POINT3D) {}
+        ~OptFactorPlane_Point3d() {
+            if (m_obs)
+                delete m_obs;
+        }
+        void setObs(double* _obs)
+        {
+            if (m_obs == nullptr)
+                m_obs = new double[4];
+            memcpy(m_obs, _obs, sizeof(double) * 4);
+        }
+
+        bool calculateErrAndJac(double* _err, double** _jac, double _w, OptVarAbr<double>** _values) const override
+        {
+            if (!checkVDims(_values))
+                return false;
+            if (_err == nullptr)
+                return false;
+            auto P = _values[0]->getData();
+            auto plane = m_obs;
+
+            Eigen::Vector3d Pw = Eigen::Map<const Eigen::Vector3d>(P, 3);
+            Eigen::Vector4d planew = Eigen::Map<const Eigen::Vector4d>(plane, 4);
+
+            double err = 0;
+            Eigen::Vector3d jacPlanew_Pw;
+            jacPlanew_Pw.setIdentity();
+
+            OPTIMIZE_BASE_TWC::cal_jac_errPlane_Pw(planew, Pw, err, jacPlanew_Pw);
+
+            memcpy(_err, &err, sizeof(double));
+            if (_jac[0])
+                memcpy(_jac[0], jacPlanew_Pw.data(), sizeof(double) * 3);
+            return true;
+        }
+
+
+        friend std::ostream& operator<<(std::ostream& os, const OptFactorPlane_Point3d& cls)
+        {
+            std::cout << cls.m_obs[0] << " \t" << cls.m_obs[1] << " \t" << cls.m_obs[2] << " \t" << cls.m_obs[3] << std::endl;
+            return os;
+        }
+
+    private:
+        double* m_obs = nullptr;
+    };
+
+    class OptFactorUV_Pose3d_Point3d : public OptFactor<double, 2, 6, 3>
+    {
+    public:
+        OptFactorUV_Pose3d_Point3d(const uint64_t _id) : OptFactor<double, 2, 6, 3>(_id, OptFactorType::FACTOR_UV_T3DPOINT3D) {}
+        ~OptFactorUV_Pose3d_Point3d() {
+            if (m_obs)
+                delete m_obs;
+            if (m_K)
+                delete m_K;
+        }
+        void setObs(double* _obs, double* _K)
+        {
+            if (m_obs == nullptr)
+                m_obs = new double[2];
+            memcpy(m_obs, _obs, sizeof(double) * 2);
+            if (m_K == nullptr)
+                m_K = new double[4];
+            memcpy(m_K, _obs, sizeof(double) * 4);
+        }
+
+        bool calculateErrAndJac(double* _err, double** _jac, double _w, OptVarAbr<double>** _values) const override
+        {
+            if (!checkVDims(_values))
+                return false;
+            if (_err == nullptr)
+                return false;
+            auto T = _values[0]->getData();
+            auto P = _values[1]->getData();
+            auto uv = m_obs;
+            auto k = m_K;
+
+            Eigen::Vector2d err;
+            Eigen::Matrix<double, 3, 4> Twc;
+            Twc.block(0, 0, 3, 3) = Eigen::Map<const Eigen::Matrix3d>(T, 3, 3);
+            Twc.block(0, 3, 3, 1) = Eigen::Map<const Eigen::Vector3d>(T + 9, 3);
+            Eigen::Vector3d Pw = Eigen::Map<const Eigen::Vector3d>(P, 3);
+            Eigen::Vector2d UV = Eigen::Map<const Eigen::Vector2d>(uv, 2);
+            Eigen::Matrix3d K;
+            K.setIdentity();
+            K(0, 0) = k[0];
+            K(1, 1) = k[1];
+            K(0, 2) = k[2];
+            K(1, 2) = k[3];
+
+            Eigen::Matrix<double, 2, 6> jacUV_Twc;
+            Eigen::Matrix<double, 2, 3> jacUV_Pw;
+
+            OPTIMIZE_BASE_TWC::cal_jac_errUV_Tcw_Pw(Twc, K, Pw, UV, err, jacUV_Twc, jacUV_Pw);
+
+            memcpy(_err, &err, sizeof(double));
+            if (_jac[0])
+                memcpy(_jac[0], jacUV_Twc.data(), sizeof(double) * 12);
+            if (_jac[1])
+                memcpy(_jac[1], jacUV_Pw.data(), sizeof(double) * 6);
+            return true;
+        }
+
+
+
+        friend std::ostream& operator<<(std::ostream& os, const OptFactorUV_Pose3d_Point3d& cls)
+        {
+            std::cout << cls.m_obs[0] << " \t" << cls.m_obs[1] << std::endl;
+            return os;
+        }
+    private:
+        double* m_obs = nullptr;
+        double* m_K = nullptr;
+    };
 }
 
 #endif // OPTIMIZE_FACTOR_H

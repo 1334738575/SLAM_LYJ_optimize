@@ -309,8 +309,10 @@ int main(int argc, char *argv[])
     // return 0;
     std::cout << "Optimize Version: " << OPTIMIZE_LYJ::optimize_version() << std::endl;
     // OPTIMIZE_LYJ::test_optimize_P3d_P3d();
-    OPTIMIZE_LYJ::test_optimize_Pose3d_Pose3d();
+    //OPTIMIZE_LYJ::test_optimize_Pose3d_Pose3d();
     // OPTIMIZE_LYJ::test_optimize_RelPose3d_Pose3d_Pose3d();
+    //OPTIMIZE_LYJ::test_optimize_Plane_P();
+    OPTIMIZE_LYJ::test_optimize_UV_Pose3d_P3d();
     // main3();
     return 0;
 }

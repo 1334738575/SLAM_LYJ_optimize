@@ -167,4 +167,91 @@ namespace OPTIMIZE_LYJ
 		std::cout << "real T12: " << OPTIMIZE_BASE::relPose(varPtr1->getData(), varPtr2->getData()) << std::endl;
 		return;
 	}
+	OPTIMIZE_LYJ_API void test_optimize_Plane_P()
+	{
+		Eigen::Vector3d Pw(1, 2, 3);
+		Eigen::Vector3d P(4, 9, 3);
+		Eigen::Vector3d nw(1, 2, 4);
+		nw.normalize();
+		Eigen::Vector4d planew;
+		planew.head(3) = nw;
+		planew(3) = -P.dot(nw);
+
+		std::shared_ptr<OptVarAbr<double>> varPtr1 = std::make_shared<OptVarPoint3d>(0);
+		varPtr1->setData(Pw.data());
+		std::shared_ptr<OptFactorAbr<double>> factorPtr = std::make_shared<OptFactorPlane_Point3d>(0);
+		OptFactorPlane_Point3d* factor = dynamic_cast<OptFactorPlane_Point3d*>(factorPtr.get());
+		factor->setObs(planew.data());
+		std::vector<uint64_t> vIds;
+		vIds.push_back(varPtr1->getId());
+
+		 OptimizerSmalld optimizer;
+		//OptimizerLargeSparse optimizer;
+		optimizer.addVariable(varPtr1);
+		optimizer.addFactor(factorPtr, vIds);
+		optimizer.run();
+		return;
+	}
+	OPTIMIZE_LYJ_API void test_optimize_UV_Pose3d_P3d()
+	{
+		 OptimizerSmalld optimizer;
+		//OptimizerLargeSparse optimizer;
+
+		std::shared_ptr<OptVarAbr<double>> varPtr0 = std::make_shared<OptVarPose3Eulard>(0);
+		Eigen::Matrix<double, 3, 4> Twc;
+		Twc.setZero();
+		Twc.block(0, 0, 3, 3) = Eigen::Matrix3d::Identity();
+		//double r = 3.14 / 8;
+		//Twc(0, 0) = std::cos(r);
+		//Twc(0, 1) = -1 * std::sin(r);
+		//Twc(1, 0) = std::sin(r);
+		//Twc(1, 1) = std::cos(r);
+		//Twc(0, 3) = 1.0;
+		//Twc(1, 3) = 10.0;
+		//Twc(2, 3) = 222.0;
+		varPtr0->setData(Twc.data());
+		varPtr0->setFixed(true);
+		optimizer.addVariable(varPtr0);
+		std::shared_ptr<OptVarAbr<double>> varPtr1 = std::make_shared<OptVarPoint3d>(1);
+		Eigen::Vector3d Pw1(0, 0.2, 1);
+		varPtr1->setData(Pw1.data());
+		optimizer.addVariable(varPtr1);
+		std::shared_ptr<OptVarAbr<double>> varPtr2 = std::make_shared<OptVarPoint3d>(2);
+		Eigen::Vector3d Pw2(1, 1.2, 1);
+		varPtr1->setData(Pw2.data());
+		optimizer.addVariable(varPtr2);
+		std::shared_ptr<OptVarAbr<double>> varPtr3 = std::make_shared<OptVarPoint3d>(3);
+		Eigen::Vector3d Pw3(0, 1.2, 1);
+		varPtr1->setData(Pw3.data());
+		optimizer.addVariable(varPtr3);
+
+		std::vector<double> K(4, 1);
+		std::shared_ptr<OptFactorAbr<double>> factorPtr1 = std::make_shared<OptFactorUV_Pose3d_Point3d>(0);
+		OptFactorUV_Pose3d_Point3d* factor1 = dynamic_cast<OptFactorUV_Pose3d_Point3d*>(factorPtr1.get());
+		Eigen::Vector2d obs1(0, 0);
+		factor1->setObs(obs1.data(), K.data());
+		std::vector<uint64_t> vIds1;
+		vIds1.push_back(varPtr0->getId());
+		vIds1.push_back(varPtr1->getId());
+		optimizer.addFactor(factorPtr1, vIds1);		
+		std::shared_ptr<OptFactorAbr<double>> factorPtr2 = std::make_shared<OptFactorUV_Pose3d_Point3d>(0);
+		OptFactorUV_Pose3d_Point3d* factor2 = dynamic_cast<OptFactorUV_Pose3d_Point3d*>(factorPtr2.get());
+		Eigen::Vector2d obs2(1, 1);
+		factor2->setObs(obs2.data(), K.data());
+		std::vector<uint64_t> vIds2;
+		vIds2.push_back(varPtr0->getId());
+		vIds2.push_back(varPtr2->getId());
+		optimizer.addFactor(factorPtr2, vIds2);		
+		std::shared_ptr<OptFactorAbr<double>> factorPtr3 = std::make_shared<OptFactorUV_Pose3d_Point3d>(0);
+		OptFactorUV_Pose3d_Point3d* factor3 = dynamic_cast<OptFactorUV_Pose3d_Point3d*>(factorPtr3.get());
+		Eigen::Vector2d obs3(0, 1);
+		factor3->setObs(obs3.data(), K.data());
+		std::vector<uint64_t> vIds3;
+		vIds3.push_back(varPtr0->getId());
+		vIds3.push_back(varPtr3->getId());
+		optimizer.addFactor(factorPtr3, vIds3);
+
+		optimizer.run();
+		return;
+	}
 } // namespace OPTIMIZE_LYJ

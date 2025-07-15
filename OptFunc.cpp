@@ -759,7 +759,7 @@ namespace OPTIMIZE_LYJ
 
         void cal_jac_errUV_Tcw_Pw(const m34 &Twc, const m33 &K,
                                   const v3d &Pw, const v2d &uv,
-                                  v2d &err, m26 &jac)
+                                  v2d &err, m26& jacUV_Twc, m23& jac_UV_Pw)
         {
             m33 Rcw = Twc.block(0, 0, 3, 3).transpose();
             v3d t = Pw - Twc.block(0, 3, 3, 1);
@@ -774,14 +774,16 @@ namespace OPTIMIZE_LYJ
             /*
             RwcT * (Pw - twc)^
             */
-            jac.setZero();
+            jacUV_Twc.setZero();
             Eigen::Matrix<double, 2, 3> dedPc;
             dedPc << -1 * K(0, 0) / Pc(2), 0, K(0, 0) * Pc(0) / (Pc(2) * Pc(2)),
                 0, -1 * K(1, 1) / Pc(2), K(1, 1) * Pc(1) / (Pc(2) * Pc(2));
             Eigen::Matrix<double, 3, 6> dPcdT;
             dPcdT.block(0, 0, 3, 3) = -1 * Rcw;
-            dPcdT.block(0, 3, 3, 3) = OPTIMIZE_BASE::skew_symmetric(t);
-            jac = dedPc * dPcdT;
+            dPcdT.block(0, 3, 3, 3) = Rcw * OPTIMIZE_BASE::skew_symmetric(t);
+            jacUV_Twc = dedPc * dPcdT;
+            Eigen::Matrix3d dPcPw = Rcw;
+            jac_UV_Pw = dedPc * dPcPw;
         }
 
         void cal_jac_errPlane_Pw(const v4d &planew, const v3d &Pw, double &err, v3d &jac)
