@@ -43,7 +43,7 @@ namespace OPTIMIZE_LYJ
         const std::vector<int> &getVDims() const { return m_vDims; };
 
         void setEnable(bool _enable) { m_enable = _enable ? 1 : 0; }
-        bool isEnable() const { return m_enable == 1;}
+        bool isEnable() const { return m_enable == 1; }
         bool checkVDims(OptVarAbr<T> **_values) const
         {
             for (size_t i = 0; i < m_vDims.size(); ++i)
@@ -68,11 +68,11 @@ namespace OPTIMIZE_LYJ
     {
     protected:
     public:
-        OptFactor(const uint64_t _id, const OptFactorType _type) : OptFactorAbr(_id, _type)
+        OptFactor(const uint64_t _id, const OptFactorType _type) : OptFactorAbr<T>(_id, _type)
         {
             // m_err = new T[EDIM];
             // memset(m_err, 0, sizeof(T) * EDIM);
-            m_vDims = std::vector<int>{VDIMS...};
+            this->m_vDims = std::vector<int>{VDIMS...};
         }
         ~OptFactor() {}
 

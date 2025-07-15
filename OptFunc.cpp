@@ -2,9 +2,10 @@
 
 namespace OPTIMIZE_LYJ
 {
-    namespace OPTIMIZE_BASE {
+    namespace OPTIMIZE_BASE
+    {
 
-        Eigen::Matrix<double, 3, 4> relPose(const Eigen::Matrix<double, 3, 4>& _Tw1, const Eigen::Matrix<double, 3, 4>& _Tw2) 
+        Eigen::Matrix<double, 3, 4> relPose(const Eigen::Matrix<double, 3, 4> &_Tw1, const Eigen::Matrix<double, 3, 4> &_Tw2)
         {
             Eigen::Matrix<double, 3, 4> T12;
             T12.setZero();
@@ -13,7 +14,7 @@ namespace OPTIMIZE_LYJ
             return T12;
         }
 
-        Eigen::Matrix<double, 3, 4> relPose(const double* const _Tw1, const double* const _Tw2)
+        Eigen::Matrix<double, 3, 4> relPose(const double *const _Tw1, const double *const _Tw2)
         {
             Eigen::Map<const Eigen::Matrix<double, 3, 4>> Tw1(_Tw1);
             Eigen::Map<const Eigen::Matrix<double, 3, 4>> Tw2(_Tw2);
@@ -24,14 +25,13 @@ namespace OPTIMIZE_LYJ
             return T12;
         }
 
-
-        Eigen::Matrix3d skew_symmetric(const Eigen::Vector3d& v)
+        Eigen::Matrix3d skew_symmetric(const Eigen::Vector3d &v)
         {
             Eigen::Matrix3d S;
             S << 0, -v(2), v(1), v(2), 0, -v(0), -v(1), v(0), 0;
             return S;
         }
-        Eigen::Matrix3d NormalizeRotation(const Eigen::Matrix3d& R)
+        Eigen::Matrix3d NormalizeRotation(const Eigen::Matrix3d &R)
         {
             Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);
             return svd.matrixU() * svd.matrixV();
@@ -53,13 +53,13 @@ namespace OPTIMIZE_LYJ
                 return NormalizeRotation(res);
             }
         }
-        Eigen::Vector3d Lnso3(const Eigen::Matrix3d& R)
+        Eigen::Vector3d Lnso3(const Eigen::Matrix3d &R)
         {
             Eigen::Vector3d theta;
 
             return Eigen::Vector3d();
         }
-        v6d orth_to_plk(const v4d& orth)
+        v6d orth_to_plk(const v4d &orth)
         {
             v6d plk;
             v3d theta = orth.head(3);
@@ -71,9 +71,9 @@ namespace OPTIMIZE_LYJ
             double s3 = sin(theta[2]);
             double c3 = cos(theta[2]);
             m33 R;
-            R << c2 * c3, s1* s2* c3 - c1 * s3, c1* s2* c3 + s1 * s3,
-                c2* s3, s1* s2* s3 + c1 * c3, c1* s2* s3 - s1 * c3,
-                -s2, s1* c2, c1* c2;
+            R << c2 * c3, s1 * s2 * c3 - c1 * s3, c1 * s2 * c3 + s1 * s3,
+                c2 * s3, s1 * s2 * s3 + c1 * c3, c1 * s2 * s3 - s1 * c3,
+                -s2, s1 * c2, c1 * c2;
             // double w1 = cos(phi);
             // double w2 = sin(phi);
             // plk.head(3) = R.col(0) * w1;
@@ -83,7 +83,7 @@ namespace OPTIMIZE_LYJ
             plk.tail(3) = R.col(1);
             return plk;
         }
-        v6d plk_to_pose(const v6d& plk_w, const m33& Rcw, const v3d& tcw)
+        v6d plk_to_pose(const v6d &plk_w, const m33 &Rcw, const v3d &tcw)
         {
             v3d nw = plk_w.head(3);
             v3d vw = plk_w.tail(3);
@@ -94,7 +94,7 @@ namespace OPTIMIZE_LYJ
             plk_c.tail(3) = vc;
             return plk_c;
         }
-        v6d orth_to_line(const v4d& orth)
+        v6d orth_to_line(const v4d &orth)
         {
             v6d line;
 
@@ -108,9 +108,9 @@ namespace OPTIMIZE_LYJ
             double s3 = std::sin(theta[2]);
             double c3 = std::cos(theta[2]);
             m33 R;
-            R << c2 * c3, s1* s2* c3 - c1 * s3, c1* s2* c3 + s1 * s3,
-                c2* s3, s1* s2* s3 + c1 * c3, c1* s2* s3 - s1 * c3,
-                -s2, s1* c2, c1* c2;
+            R << c2 * c3, s1 * s2 * c3 - c1 * s3, c1 * s2 * c3 + s1 * s3,
+                c2 * s3, s1 * s2 * s3 + c1 * c3, c1 * s2 * s3 - s1 * c3,
+                -s2, s1 * c2, c1 * c2;
 
             // double w1 = std::cos(phi);
             // double w2 = std::sin(phi);
@@ -122,7 +122,7 @@ namespace OPTIMIZE_LYJ
 
             return line;
         }
-        v4d line_to_orth(const v3d& p, const v3d& v)
+        v4d line_to_orth(const v3d &p, const v3d &v)
         {
             v4d orth;
             v3d n = p.cross(v);
@@ -141,7 +141,7 @@ namespace OPTIMIZE_LYJ
             return orth;
         }
         // 普吕克与正交转换
-        v4d plk_to_orth(const v3d& n, const v3d& v)
+        v4d plk_to_orth(const v3d &n, const v3d &v)
         {
             v4d orth;
             v3d u1 = n / n.norm();
@@ -160,9 +160,9 @@ namespace OPTIMIZE_LYJ
             return orth;
         }
 
-        void cal_jac_errUV_Tcw_Pw(const Eigen::Matrix<double, 3, 4>& Tcw, const Eigen::Matrix3d& K,
-            const Eigen::Vector3d& Pw, const Eigen::Vector2d& uv,
-            Eigen::Vector2d& err, Eigen::Matrix<double, 2, 6>& jac, const double w, const double invalidErr)
+        void cal_jac_errUV_Tcw_Pw(const Eigen::Matrix<double, 3, 4> &Tcw, const Eigen::Matrix3d &K,
+                                  const Eigen::Vector3d &Pw, const Eigen::Vector2d &uv,
+                                  Eigen::Vector2d &err, Eigen::Matrix<double, 2, 6> &jac, const double w, const double invalidErr)
         {
             Eigen::Vector3d Pc = Tcw.block(0, 0, 3, 3) * Pw + Tcw.block(0, 3, 3, 1);
             err(0) = uv(0) - K(0, 0) * Pc(0) / Pc(2) - K(0, 2);
@@ -186,8 +186,8 @@ namespace OPTIMIZE_LYJ
             */
             jac.setZero();
             Eigen::Matrix<double, 2, 3> dedPc;
-            dedPc << -1 * K(0, 0) / Pc(2), 0, K(0, 0)* Pc(0) / (Pc(2) * Pc(2)),
-                0, -1 * K(1, 1) / Pc(2), K(1, 1)* Pc(1) / (Pc(2) * Pc(2));
+            dedPc << -1 * K(0, 0) / Pc(2), 0, K(0, 0) * Pc(0) / (Pc(2) * Pc(2)),
+                0, -1 * K(1, 1) / Pc(2), K(1, 1) * Pc(1) / (Pc(2) * Pc(2));
             Eigen::Matrix<double, 3, 6> dPcdT;
             dPcdT.block(0, 0, 3, 3).setIdentity();
             dPcdT.block(0, 3, 3, 3) << 0, Pc(2), -1 * Pc(1),
@@ -196,27 +196,26 @@ namespace OPTIMIZE_LYJ
             jac = dedPc * dPcdT;
         }
         //---- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- - ;
-        void cal_jac_errT_T(const m34& priTcw, const m34& Tcw, v6d& err, m66& jac)
+        void cal_jac_errT_T(const m44 &priTcw, const m44 &Tcw, v6d &err, m66 &jac)
         {
-            m33 Rcc = Tcw.block(0, 0, 3, 3) * priTcw.block(0, 0, 3, 3);
-            v3d t = Tcw.block(0, 0, 3, 3) * priTcw.block(0, 3, 3, 1);
-            v3d tcc = Tcw.block(0, 3, 3, 1) + t;
+            m33 Rcc = Tcw.block(0, 0, 3, 3) * priTcw.block(0, 0, 3, 3).transpose();
+            v3d t = Rcc * priTcw.block(0, 3, 3, 1);
+            v3d tcc = Tcw.block(0, 3, 3, 1) - t;
             Eigen::AngleAxisd ang(Rcc);
             v3d a = ang.axis();
             double theta = ang.angle();
-            err.block(3, 0, 3, 1) = a * theta / 2;
-            err.block(0, 0, 3, 1) = tcc / 2;
+            err.block(3, 0, 3, 1) = a * theta;
+            err.block(0, 0, 3, 1) = tcc;
             jac.setIdentity();
             m33 dtdt = m33::Identity();
             jac.block(0, 0, 3, 3) = dtdt;
             m33 dtdR = skew_symmetric(t);
             jac.block(0, 3, 3, 1) = -1 * dtdR;
-            double halfThetaCot = theta / 2 * cos(theta / 2) * cos(theta / 2);
-            m33 dRdR = halfThetaCot * m33::Identity() + (1 - halfThetaCot) * (a * a.transpose()) - theta / 2 * skew_symmetric(a);
+            m33 dRdR = m33::Identity() + (1 - cos(theta)) * (a * a.transpose() - m33::Identity()) - sin(theta) * skew_symmetric(a);
             jac.block(3, 3, 3, 3) = dRdR;
         }
         //---- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- - ;
-        void cal_jac_errL2D_Tcw_L3D(const m34& Tcw, const v4d& lineOrth, v2d& err, m26& jacT, m24& jacL, const m33& KK, const v4d& obs)
+        void cal_jac_errL2D_Tcw_L3D(const m34 &Tcw, const v4d &lineOrth, v2d &err, m26 &jacT, m24 &jacL, const m33 &KK, const v4d &obs)
         {
             v6d lineW = orth_to_plk(lineOrth);
             m33 Rcw = Tcw.block(0, 0, 3, 3);
@@ -254,7 +253,7 @@ namespace OPTIMIZE_LYJ
             jacT = jaco_e_Lc * jaco_Lc_pose;
 
             m66 invTwc;
-            invTwc << Rcw, skew_symmetric(tcw)* Rcw,
+            invTwc << Rcw, skew_symmetric(tcw) * Rcw,
                 m33::Zero(), Rcw;
             v3d nw = lineW.head(3);
             v3d vw = lineW.tail(3);
@@ -275,7 +274,7 @@ namespace OPTIMIZE_LYJ
             jacL = jaco_e_Lc * invTwc * jaco_Lw_orth;
         }
         //---- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ----;
-        void update_Tcw(m34& Tcw, const v6d& detX, const double rate)
+        void update_Tcw(m34 &Tcw, const v6d &detX, const double rate)
         {
             v3d dett = detX.block(0, 0, 3, 1) * rate;
             v3d detr = detX.block(3, 0, 3, 1) * rate;
@@ -286,7 +285,7 @@ namespace OPTIMIZE_LYJ
             Tcw.block(0, 3, 3, 1) = dett + detR * tcw;
         }
         //---- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- - ;
-        void update_lineOrth(v4d& orthW, const v4d& detX, const double rate)
+        void update_lineOrth(v4d &orthW, const v4d &detX, const double rate)
         {
             v4d otrhW;
             v3d theta = orthW.block(0, 0, 3, 1);
@@ -298,9 +297,9 @@ namespace OPTIMIZE_LYJ
             double s3 = sin(theta[2]);
             double c3 = cos(theta[2]);
             m33 R;
-            R << c2 * c3, s1* s2* c3 - c1 * s3, c1* s2* c3 + s1 * s3,
-                c2* s3, s1* s2* s3 + c1 * c3, c1* s2* s3 - s1 * c3,
-                -s2, s1* c2, c1* c2;
+            R << c2 * c3, s1 * s2 * c3 - c1 * s3, c1 * s2 * c3 + s1 * s3,
+                c2 * s3, s1 * s2 * s3 + c1 * c3, c1 * s2 * s3 - s1 * c3,
+                -s2, s1 * c2, c1 * c2;
             double w1 = phi;
             double w2 = 1;
             // double w1 = cos(phi);
@@ -342,65 +341,62 @@ namespace OPTIMIZE_LYJ
             v3d P2 = P1 + V * 3;
             P1 = P2 - V * 6;
         }
-    
-
 
         // 3D点投影到像素坐标（带深度校验）
-        Eigen::Vector2d project(const Eigen::Vector3d& P_c,
-            double fx, double fy,
-            double cx, double cy,
-            double min_z)
+        Eigen::Vector2d project(const Eigen::Vector3d &P_c,
+                                double fx, double fy,
+                                double cx, double cy,
+                                double min_z)
         {
-            const double& z = P_c.z();
-            //if (z < min_z) { // 处理深度过小的无效情况
-            //    std::cerr << "Warning: Invalid depth " << z << " during projection!" << std::endl;
-            //    return Eigen::Vector2d(-1, -1); // 返回无效坐标
-            //}
+            const double &z = P_c.z();
+            // if (z < min_z) { // 处理深度过小的无效情况
+            //     std::cerr << "Warning: Invalid depth " << z << " during projection!" << std::endl;
+            //     return Eigen::Vector2d(-1, -1); // 返回无效坐标
+            // }
             return Eigen::Vector2d(
                 fx * P_c.x() / z + cx,
-                fy * P_c.y() / z + cy
-            );
+                fy * P_c.y() / z + cy);
         }
         // 计算雅可比矩阵（2x6，对应像素误差关于SE3的导数）
         Eigen::Matrix<double, 2, 6> compute_se3_jacobian(
-            const Eigen::Matrix3d& R_cw,         // 相机位姿（世界到相机的变换）
-            const Eigen::Vector3d& t_cw,         // 相机位姿（世界到相机的变换）
-            const Eigen::Vector3d& P_w,        // 世界坐标系下的3D点
-            double fx, double fy,              // 相机内参
+            const Eigen::Matrix3d &R_cw, // 相机位姿（世界到相机的变换）
+            const Eigen::Vector3d &t_cw, // 相机位姿（世界到相机的变换）
+            const Eigen::Vector3d &P_w,  // 世界坐标系下的3D点
+            double fx, double fy,        // 相机内参
             double cx, double cy,
-            double min_z)               // 最小深度阈值
+            double min_z) // 最小深度阈值
         {
             // Step 1: 将点变换到相机坐标系
             const Eigen::Vector3d P_c = R_cw * P_w + t_cw;
-            const double& x = P_c.x();
-            const double& y = P_c.y();
-            const double& z = P_c.z();
+            const double &x = P_c.x();
+            const double &y = P_c.y();
+            const double &z = P_c.z();
 
             //// 检查深度有效性
-            //if (z < min_z) {
-            //    std::cerr << "Error: Negative depth! Jacobian is invalid." << std::endl;
-            //    return Eigen::Matrix<double, 2, 6>::Zero();
-            //}
+            // if (z < min_z) {
+            //     std::cerr << "Error: Negative depth! Jacobian is invalid." << std::endl;
+            //     return Eigen::Matrix<double, 2, 6>::Zero();
+            // }
 
             // Step 2: 计算投影导数 de/dPc
             Eigen::Matrix<double, 2, 3> de_dpc;
             const double z_inv = 1.0 / z;
             const double z_inv2 = z_inv * z_inv;
-            de_dpc << -fx * z_inv, 0, fx* x* z_inv2,
-                0, -fy * z_inv, fy* y* z_inv2;
+            de_dpc << -fx * z_inv, 0, fx * x * z_inv2,
+                0, -fy * z_inv, fy * y * z_inv2;
 
             // Step 3: 计算点坐标关于李代数的导数 dPc/dξ
             Eigen::Matrix<double, 3, 6> dpc_dxi;
             dpc_dxi.leftCols<3>() = Eigen::Matrix3d::Identity(); // 平移部分
-            dpc_dxi.rightCols<3>() = -skew_symmetric(P_c);    // 旋转部分（反对称矩阵）
+            dpc_dxi.rightCols<3>() = -skew_symmetric(P_c);       // 旋转部分（反对称矩阵）
 
             // Step 4: 链式法则组合雅可比矩阵
             return de_dpc * dpc_dxi;
         }
 
-
         // 生成3x3反对称矩阵
-        Eigen::Matrix3d hat(const Eigen::Vector3d& v) {
+        Eigen::Matrix3d hat(const Eigen::Vector3d &v)
+        {
             Eigen::Matrix3d M;
             M << 0, -v.z(), v.y(),
                 v.z(), 0, -v.x(),
@@ -408,11 +404,13 @@ namespace OPTIMIZE_LYJ
             return M;
         }
         // 从反对称矩阵恢复向量
-        Eigen::Vector3d vee(const Eigen::Matrix3d& M) {
+        Eigen::Vector3d vee(const Eigen::Matrix3d &M)
+        {
             return Eigen::Vector3d(M(2, 1), M(0, 2), M(1, 0));
         }
         // SE3 对数映射（将变换矩阵转换为李代数）
-        se3 se3_log(const SE3& T) {
+        se3 se3_log(const SE3 &T)
+        {
             Eigen::Matrix3d R = T.block<3, 3>(0, 0);
             Eigen::Vector3d t = T.block<3, 1>(0, 3);
 
@@ -423,7 +421,8 @@ namespace OPTIMIZE_LYJ
 
             // 处理θ接近0的情况
             constexpr double kEpsilon = 1e-6;
-            if (theta < kEpsilon) {
+            if (theta < kEpsilon)
+            {
                 se3 ret;
                 ret.setZero();
                 ret.head<3>() = t;
@@ -432,49 +431,49 @@ namespace OPTIMIZE_LYJ
 
             // 计算平移部分 ρ
             const Eigen::Matrix3d phi_hat = OPTIMIZE_BASE::skew_symmetric(omega * theta);
-            Eigen::Matrix3d J_inv = Eigen::Matrix3d::Identity()
-                - 0.5 * phi_hat
-                + (1.0 / (theta * theta) - (1 + cos(theta)) / (2 * theta * sin(theta))) * phi_hat * phi_hat;
+            Eigen::Matrix3d J_inv = Eigen::Matrix3d::Identity() - 0.5 * phi_hat + (1.0 / (theta * theta) - (1 + cos(theta)) / (2 * theta * sin(theta))) * phi_hat * phi_hat;
             Eigen::Vector3d rho = J_inv * t;
 
             // 组装 se3 向量 [ρ; ωθ]
             se3 xi;
-            xi << rho, omega* theta;
+            xi << rho, omega * theta;
             return xi;
         }
-		// SE3 指数映射（将李代数转换为变换矩阵）
-		SE3 se3_exp(const se3& xi) {
-			Eigen::Vector3d rho = xi.head<3>();
-			Eigen::Vector3d omega_theta = xi.tail<3>();
-			// 计算旋转部分
-			double theta = omega_theta.norm();
-			Eigen::Vector3d omega = omega_theta.normalized();
+        // SE3 指数映射（将李代数转换为变换矩阵）
+        SE3 se3_exp(const se3 &xi)
+        {
+            Eigen::Vector3d rho = xi.head<3>();
+            Eigen::Vector3d omega_theta = xi.tail<3>();
+            // 计算旋转部分
+            double theta = omega_theta.norm();
+            Eigen::Vector3d omega = omega_theta.normalized();
             Eigen::Matrix3d R = Eigen::AngleAxisd(theta, omega).toRotationMatrix();
-            //Eigen::Matrix3d R = ExpSO3(omega_theta(0), omega_theta(1), omega_theta(2));
+            // Eigen::Matrix3d R = ExpSO3(omega_theta(0), omega_theta(1), omega_theta(2));
             Eigen::Vector3d t;
-            if (theta < 1e-6) {
+            if (theta < 1e-6)
+            {
                 t = rho;
             }
-            else {
+            else
+            {
                 // 计算平移部分
                 const Eigen::Matrix3d phi_hat = OPTIMIZE_BASE::skew_symmetric(omega_theta);
-                const Eigen::Matrix3d J = Eigen::Matrix3d::Identity()
-                    + (1 - cos(theta)) / (theta * theta) * phi_hat
-                    + (theta - sin(theta)) / (theta * theta * theta) * phi_hat * phi_hat;
-                //const Eigen::Matrix3d phi_hat = OPTIMIZE_BASE::skew_symmetric(omega);
-                //Eigen::Matrix3d J = Eigen::Matrix3d::Identity()
+                const Eigen::Matrix3d J = Eigen::Matrix3d::Identity() + (1 - cos(theta)) / (theta * theta) * phi_hat + (theta - sin(theta)) / (theta * theta * theta) * phi_hat * phi_hat;
+                // const Eigen::Matrix3d phi_hat = OPTIMIZE_BASE::skew_symmetric(omega);
+                // Eigen::Matrix3d J = Eigen::Matrix3d::Identity()
                 //	- 0.5 * phi_hat + (1.0 / (theta * theta) - (1 + cos(theta)) / (2 * theta * sin(theta))) * phi_hat * phi_hat;
                 t = J * rho;
             }
-			// 构造变换矩阵
-			SE3 T;
-			T.block<3, 3>(0, 0) = R;
-			T.block<3, 1>(0, 3) = t;
-			T.row(3) << 0, 0, 0, 1; // 齐次坐标
-			return T;
-		}
+            // 构造变换矩阵
+            SE3 T;
+            T.block<3, 3>(0, 0) = R;
+            T.block<3, 1>(0, 3) = t;
+            T.row(3) << 0, 0, 0, 1; // 齐次坐标
+            return T;
+        }
         // 构造伴随矩阵 ad(ξ)
-        Eigen::Matrix<double, 6, 6> ad_se3(const se3& xi) {
+        Eigen::Matrix<double, 6, 6> ad_se3(const se3 &xi)
+        {
             Eigen::Vector3d rho = xi.head<3>();
             Eigen::Vector3d omega = xi.tail<3>();
 
@@ -487,10 +486,10 @@ namespace OPTIMIZE_LYJ
         }
         // 计算先验位姿误差的雅可比矩阵
         Eigen::Matrix<double, 6, 6> compute_prior_jacobian(
-            const SE3& T_current,  // 当前位姿 (4x4)
-            const SE3& T_prior,      // 先验位姿 (4x4)
-            se3& _err
-        ) {
+            const SE3 &T_current, // 当前位姿 (4x4)
+            const SE3 &T_prior,   // 先验位姿 (4x4)
+            se3 &_err)
+        {
             // 计算相对变换 T_rel = T_prior^{-1} * T_current
             SE3 T_rel = T_prior.inverse() * T_current;
 
@@ -499,22 +498,23 @@ namespace OPTIMIZE_LYJ
 
             // 计算右雅可比矩阵的逆近似: J_r^{-1} ≈ I + 0.5 * ad(ξ)
             Eigen::Matrix<double, 6, 6> J = Eigen::Matrix<double, 6, 6>::Identity();
-            if (_err.norm() > 1e-6) { // 避免小量计算带来的数值不稳定
+            if (_err.norm() > 1e-6)
+            { // 避免小量计算带来的数值不稳定
                 J += 0.5 * ad_se3(_err);
             }
 
             return J;
         }
-        //void compute_prior_jacobian(
-        //    const double* T,
-        //    const double* Tpri,
-        //    double* jacobian
+        // void compute_prior_jacobian(
+        //     const double* T,
+        //     const double* Tpri,
+        //     double* jacobian
         //) {
-        //    //Eigen::Map<const Eigen::Matrix3d> R(T, 9);
-        //    //Eigen::Map<const Eigen::Matrix3d> Rpri(Tpri, 9);
-        //    //Eigen::Map<const Eigen::Vector3d> t(T + 9, 3);
-        //    //Eigen::Map<const Eigen::Vector3d> tpri(Tpri + 9, 3);
-        //    //SE3 T_rel = T_prior.inverse() * T_current;
+        //     //Eigen::Map<const Eigen::Matrix3d> R(T, 9);
+        //     //Eigen::Map<const Eigen::Matrix3d> Rpri(Tpri, 9);
+        //     //Eigen::Map<const Eigen::Vector3d> t(T + 9, 3);
+        //     //Eigen::Map<const Eigen::Vector3d> tpri(Tpri + 9, 3);
+        //     //SE3 T_rel = T_prior.inverse() * T_current;
 
         //    //// 计算李代数误差 ξ = log(T_rel)
         //    //se3 xi = se3_log(T_rel);
@@ -528,9 +528,9 @@ namespace OPTIMIZE_LYJ
         //    //return J;
         //}
 
-
         // 反对称矩阵生成
-        Eigen::Matrix3d skew(const Eigen::Vector3d& v) {
+        Eigen::Matrix3d skew(const Eigen::Vector3d &v)
+        {
             Eigen::Matrix3d S;
             S << 0, -v.z(), v.y(),
                 v.z(), 0, -v.x(),
@@ -538,7 +538,8 @@ namespace OPTIMIZE_LYJ
             return S;
         }
         // 计算SE3的伴随矩阵
-        Eigen::Matrix<double, 6, 6> adjoint_SE3(const SE3& T) {
+        Eigen::Matrix<double, 6, 6> adjoint_SE3(const SE3 &T)
+        {
             Eigen::Matrix3d R = T.block<3, 3>(0, 0);
             Eigen::Vector3d t = T.block<3, 1>(0, 3);
             Eigen::Matrix<double, 6, 6> adj;
@@ -550,19 +551,19 @@ namespace OPTIMIZE_LYJ
         }
         // 三维线投影到图像直线
         Eigen::Vector3d projectLineToImage(
-            const PluckerLine& L_camera,
-            const Eigen::Matrix3d& K_invT)
+            const PluckerLine &L_camera,
+            const Eigen::Matrix3d &K_invT)
         {
             // 提取方向向量并投影
             Eigen::Vector3d l_homog = K_invT * L_camera.n;
             return l_homog.normalized(); // 齐次坐标归一化
         }
         void computeJacobians(
-            const SE3& T,                    // 当前位姿
-            const PluckerLine& L_world,      // 世界坐标系下的线
-            const Eigen::Vector3d& l_obs,    // 观测到的图像线
-            Eigen::Matrix<double, 3, 6>& J_pose,
-            Eigen::Matrix<double, 3, 6>& J_line)
+            const SE3 &T,                 // 当前位姿
+            const PluckerLine &L_world,   // 世界坐标系下的线
+            const Eigen::Vector3d &l_obs, // 观测到的图像线
+            Eigen::Matrix<double, 3, 6> &J_pose,
+            Eigen::Matrix<double, 3, 6> &J_line)
         {
             // Step 1: 变换到相机坐标系
             Eigen::Matrix<double, 6, 6> adj_T = adjoint_SE3(T);
@@ -571,7 +572,7 @@ namespace OPTIMIZE_LYJ
             L_camera.v = adj_T.block<3, 3>(3, 0) * L_world.n + adj_T.block<3, 3>(3, 3) * L_world.v;
 
             // Step 2: 投影到图像平面
-            Eigen::Matrix3d K_invT;// = /* 相机内参的逆转置 */;
+            Eigen::Matrix3d K_invT; // = /* 相机内参的逆转置 */;
             Eigen::Vector3d l_pred = projectLineToImage(L_camera, K_invT);
 
             // Step 3: 误差关于投影线的导数
@@ -593,9 +594,7 @@ namespace OPTIMIZE_LYJ
             J_line = de_dl * dl_dLc * dLc_dLw;
         }
 
-
-
-        Eigen::Matrix3d EulerToRot(const double& r, const double& p, const double& w)
+        Eigen::Matrix3d EulerToRot(const double &r, const double &p, const double &w)
         {
             double cr = std::cos(r);
             double sr = std::sin(r);
@@ -604,68 +603,66 @@ namespace OPTIMIZE_LYJ
             double cw = std::cos(w);
             double sw = std::sin(w);
             Eigen::Matrix3d rotate;
-            rotate <<
-                cr * cp, cr * sp * sw - sr * cw, cr * sp * cw + sr * sw,
+            rotate << cr * cp, cr * sp * sw - sr * cw, cr * sp * cw + sr * sw,
                 sr * cp, sr * sp * sw + cr * cw, sr * sp * cw - cr * sw,
                 -sp, cp * sw, cp * cw;
             return rotate;
         }
         void computeJacRelPose3d_Pose3d_Pose3d(
-            const Eigen::Matrix3d& Rw1, const Eigen::Vector3d& tw1,
-            const Eigen::Matrix3d& Rw2, const Eigen::Vector3d& tw2,
-            const Eigen::Matrix3d& R12, const Eigen::Vector3d& t12,
-            const Eigen::Vector3d& cw1, const Eigen::Vector3d& cw2,
-            Eigen::Matrix<double, 6, 6>& jacT12_Tw1, Eigen::Matrix<double, 6, 6>& jacT12_Tw2,
-            Eigen::Matrix<double, 6, 1>& err
-        ) 
+            const Eigen::Matrix3d &Rw1, const Eigen::Vector3d &tw1,
+            const Eigen::Matrix3d &Rw2, const Eigen::Vector3d &tw2,
+            const Eigen::Matrix3d &R12, const Eigen::Vector3d &t12,
+            const Eigen::Vector3d &cw1, const Eigen::Vector3d &cw2,
+            Eigen::Matrix<double, 6, 6> &jacT12_Tw1, Eigen::Matrix<double, 6, 6> &jacT12_Tw2,
+            Eigen::Matrix<double, 6, 1> &err)
         {
             typedef double ValueType;
 
-            const auto& RwA00 = Rw1(0, 0);
-            const auto& RwA01 = Rw1(0, 1);
-            const auto& RwA02 = Rw1(0, 2);
-            const auto& RwA10 = Rw1(1, 0);
-            const auto& RwA11 = Rw1(1, 1);
-            const auto& RwA12 = Rw1(1, 2);
-            const auto& RwA20 = Rw1(2, 0);
-            const auto& RwA21 = Rw1(2, 1);
-            const auto& RwA22 = Rw1(2, 2);
-            const auto& twA0 = tw1(0);
-            const auto& twA1 = tw1(1);
-            const auto& twA2 = tw1(2);
+            const auto &RwA00 = Rw1(0, 0);
+            const auto &RwA01 = Rw1(0, 1);
+            const auto &RwA02 = Rw1(0, 2);
+            const auto &RwA10 = Rw1(1, 0);
+            const auto &RwA11 = Rw1(1, 1);
+            const auto &RwA12 = Rw1(1, 2);
+            const auto &RwA20 = Rw1(2, 0);
+            const auto &RwA21 = Rw1(2, 1);
+            const auto &RwA22 = Rw1(2, 2);
+            const auto &twA0 = tw1(0);
+            const auto &twA1 = tw1(1);
+            const auto &twA2 = tw1(2);
 
-            const auto& RwB00 = Rw2(0, 0);
-            const auto& RwB01 = Rw2(0, 1);
-            const auto& RwB02 = Rw2(0, 2);
-            const auto& RwB10 = Rw2(1, 0);
-            const auto& RwB11 = Rw2(1, 1);
-            const auto& RwB12 = Rw2(1, 2);
-            const auto& RwB20 = Rw2(2, 0);
-            const auto& RwB21 = Rw2(2, 1);
-            const auto& RwB22 = Rw2(2, 2);
-            const auto& twB0 = tw2(0);
-            const auto& twB1 = tw2(1);
-            const auto& twB2 = tw2(2);
+            const auto &RwB00 = Rw2(0, 0);
+            const auto &RwB01 = Rw2(0, 1);
+            const auto &RwB02 = Rw2(0, 2);
+            const auto &RwB10 = Rw2(1, 0);
+            const auto &RwB11 = Rw2(1, 1);
+            const auto &RwB12 = Rw2(1, 2);
+            const auto &RwB20 = Rw2(2, 0);
+            const auto &RwB21 = Rw2(2, 1);
+            const auto &RwB22 = Rw2(2, 2);
+            const auto &twB0 = tw2(0);
+            const auto &twB1 = tw2(1);
+            const auto &twB2 = tw2(2);
 
-            const auto& RAB00 = R12(0, 0);
-            const auto& RAB01 = R12(0, 1);
-            const auto& RAB02 = R12(0, 2);
-            const auto& RAB10 = R12(1, 0);
-            const auto& RAB11 = R12(1, 1);
-            const auto& RAB12 = R12(1, 2);
-            const auto& RAB20 = R12(2, 0);
-            const auto& RAB21 = R12(2, 1);
-            const auto& RAB22 = R12(2, 2);
-            const auto& tAB0 = t12(0);
-            const auto& tAB1 = t12(1);
-            const auto& tAB2 = t12(2);
+            const auto &RAB00 = R12(0, 0);
+            const auto &RAB01 = R12(0, 1);
+            const auto &RAB02 = R12(0, 2);
+            const auto &RAB10 = R12(1, 0);
+            const auto &RAB11 = R12(1, 1);
+            const auto &RAB12 = R12(1, 2);
+            const auto &RAB20 = R12(2, 0);
+            const auto &RAB21 = R12(2, 1);
+            const auto &RAB22 = R12(2, 2);
+            const auto &tAB0 = t12(0);
+            const auto &tAB1 = t12(1);
+            const auto &tAB2 = t12(2);
 
-            const auto& centerA0 = cw1(0);
-            const auto& centerA1 = cw1(1);
-            const auto& centerA2 = cw1(2);
-            const auto& centerB0 = cw2(0);
-            const auto& centerB1 = cw2(1);
-            const auto& centerB2 = cw2(2);
+            const auto &centerA0 = cw1(0);
+            const auto &centerA1 = cw1(1);
+            const auto &centerA2 = cw1(2);
+            const auto &centerB0 = cw2(0);
+            const auto &centerB1 = cw2(1);
+            const auto &centerB2 = cw2(2);
 
             ValueType err0 = atan2(RAB00 * (RwA01 * RwB00 + RwA11 * RwB10 + RwA21 * RwB20) + RAB10 * (RwA01 * RwB01 + RwA11 * RwB11 + RwA21 * RwB21) + RAB20 * (RwA01 * RwB02 + RwA11 * RwB12 + RwA21 * RwB22), RAB00 * (RwA00 * RwB00 + RwA10 * RwB10 + RwA20 * RwB20) + RAB10 * (RwA00 * RwB01 + RwA10 * RwB11 + RwA20 * RwB21) + RAB20 * (RwA00 * RwB02 + RwA10 * RwB12 + RwA20 * RwB22));
             ValueType err1 = -asin(RAB00 * (RwA02 * RwB00 + RwA12 * RwB10 + RwA22 * RwB20) + RAB10 * (RwA02 * RwB01 + RwA12 * RwB11 + RwA22 * RwB21) + RAB20 * (RwA02 * RwB02 + RwA12 * RwB12 + RwA22 * RwB22));
@@ -747,18 +744,17 @@ namespace OPTIMIZE_LYJ
             ValueType jac_e_5_T2_4 = RwA12;
             ValueType jac_e_5_T2_5 = RwA22;
 
-
-            jacT12_Tw1 << jac_e_0_T1_0, jac_e_0_T1_1, jac_e_0_T1_2, jac_e_0_T1_3, jac_e_0_T1_4, jac_e_0_T1_5, \
-                jac_e_1_T1_0, jac_e_1_T1_1, jac_e_1_T1_2, jac_e_1_T1_3, jac_e_1_T1_4, jac_e_1_T1_5, \
-                jac_e_2_T1_0, jac_e_2_T1_1, jac_e_2_T1_2, jac_e_2_T1_3, jac_e_2_T1_4, jac_e_2_T1_5, \
-                jac_e_3_T1_0, jac_e_3_T1_1, jac_e_3_T1_2, jac_e_3_T1_3, jac_e_3_T1_4, jac_e_3_T1_5, \
-                jac_e_4_T1_0, jac_e_4_T1_1, jac_e_4_T1_2, jac_e_4_T1_3, jac_e_4_T1_4, jac_e_4_T1_5, \
+            jacT12_Tw1 << jac_e_0_T1_0, jac_e_0_T1_1, jac_e_0_T1_2, jac_e_0_T1_3, jac_e_0_T1_4, jac_e_0_T1_5,
+                jac_e_1_T1_0, jac_e_1_T1_1, jac_e_1_T1_2, jac_e_1_T1_3, jac_e_1_T1_4, jac_e_1_T1_5,
+                jac_e_2_T1_0, jac_e_2_T1_1, jac_e_2_T1_2, jac_e_2_T1_3, jac_e_2_T1_4, jac_e_2_T1_5,
+                jac_e_3_T1_0, jac_e_3_T1_1, jac_e_3_T1_2, jac_e_3_T1_3, jac_e_3_T1_4, jac_e_3_T1_5,
+                jac_e_4_T1_0, jac_e_4_T1_1, jac_e_4_T1_2, jac_e_4_T1_3, jac_e_4_T1_4, jac_e_4_T1_5,
                 jac_e_5_T1_0, jac_e_5_T1_1, jac_e_5_T1_2, jac_e_5_T1_3, jac_e_5_T1_4, jac_e_5_T1_5;
-            jacT12_Tw2 << jac_e_0_T2_0, jac_e_0_T2_1, jac_e_0_T2_2, jac_e_0_T2_3, jac_e_0_T2_4, jac_e_0_T2_5, \
-                jac_e_1_T2_0, jac_e_1_T2_1, jac_e_1_T2_2, jac_e_1_T2_3, jac_e_1_T2_4, jac_e_1_T2_5, \
-                jac_e_2_T2_0, jac_e_2_T2_1, jac_e_2_T2_2, jac_e_2_T2_3, jac_e_2_T2_4, jac_e_2_T2_5, \
-                jac_e_3_T2_0, jac_e_3_T2_1, jac_e_3_T2_2, jac_e_3_T2_3, jac_e_3_T2_4, jac_e_3_T2_5, \
-                jac_e_4_T2_0, jac_e_4_T2_1, jac_e_4_T2_2, jac_e_4_T2_3, jac_e_4_T2_4, jac_e_4_T2_5, \
+            jacT12_Tw2 << jac_e_0_T2_0, jac_e_0_T2_1, jac_e_0_T2_2, jac_e_0_T2_3, jac_e_0_T2_4, jac_e_0_T2_5,
+                jac_e_1_T2_0, jac_e_1_T2_1, jac_e_1_T2_2, jac_e_1_T2_3, jac_e_1_T2_4, jac_e_1_T2_5,
+                jac_e_2_T2_0, jac_e_2_T2_1, jac_e_2_T2_2, jac_e_2_T2_3, jac_e_2_T2_4, jac_e_2_T2_5,
+                jac_e_3_T2_0, jac_e_3_T2_1, jac_e_3_T2_2, jac_e_3_T2_3, jac_e_3_T2_4, jac_e_3_T2_5,
+                jac_e_4_T2_0, jac_e_4_T2_1, jac_e_4_T2_2, jac_e_4_T2_3, jac_e_4_T2_4, jac_e_4_T2_5,
                 jac_e_5_T2_0, jac_e_5_T2_1, jac_e_5_T2_2, jac_e_5_T2_3, jac_e_5_T2_4, jac_e_5_T2_5;
             err << err0, err1, err2, err3, err4, err5;
         }

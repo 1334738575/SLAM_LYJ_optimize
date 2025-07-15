@@ -2,6 +2,9 @@
 #define OPTIMIZE_VARIABLEABR_H
 
 #include <iostream>
+#include <cstdint>
+#include <memory>
+#include <cstring>
 
 namespace OPTIMIZE_LYJ
 {
@@ -34,7 +37,7 @@ namespace OPTIMIZE_LYJ
 
         inline const uint64_t &getId() const { return m_vId; }
         inline const OptVarType &getType() const { return m_type; }
-        inline void setId(uint64_t _id) { m_vId = _id; }
+        // inline void setId(uint64_t _id) { m_vId = _id; }
         virtual void setData(T *_data) = 0;
         inline T *getData() { return m_data; }
         inline const T *getData() const { return m_data; }
@@ -55,16 +58,17 @@ namespace OPTIMIZE_LYJ
     class OptVar : public OptVarAbr<T>
     {
     public:
-        OptVar(const uint64_t _id, const OptVarType _type) : OptVarAbr(_id, _type)
+        OptVar(const uint64_t _id, const OptVarType _type) : OptVarAbr<T>(_id, _type)
         {
-            m_data = new T[DIM];
-            memset(m_data, 0, sizeof(T) * DIM);
+            this->m_data = new T[DIM];
+            // m_data = new T[DIM];
+            memset(this->m_data, 0, sizeof(T) * DIM);
         }
         ~OptVar() {}
 
         void setData(T *_data) override
         {
-            memcpy(m_data, _data, sizeof(T) * DIM);
+            memcpy(this->m_data, _data, sizeof(T) * DIM);
         }
         int getDim() const override
         {

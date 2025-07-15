@@ -1,0 +1,17 @@
+{
+    "cmake.additionalCompilerSearchDirs": [
+        "C:\\Users\\DELL\\Desktop\\code\\mingw\\w64devkit\\bin"
+    ],
+    "files.associations": {
+        "core": "cpp",
+        "iostream": "cpp",
+        "matrixfunctions": "cpp",
+        "sparselu": "cpp",
+        "array": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp",
+        "ranges": "cpp",
+        "span": "cpp",
+        "eigen": "cpp"
+    }
+}

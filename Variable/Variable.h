@@ -33,18 +33,19 @@ namespace OPTIMIZE_LYJ
     private:
     };
 
-    static Eigen::Matrix3d computeJacobianSO3(const Eigen::Vector3d& phi) {
+    static Eigen::Matrix3d computeJacobianSO3(const Eigen::Vector3d &phi)
+    {
         const double theta = phi.norm();
-        if (theta < 1e-6) return Eigen::Matrix3d::Identity();
+        if (theta < 1e-6)
+            return Eigen::Matrix3d::Identity();
 
         const Eigen::Matrix3d phi_hat = OPTIMIZE_BASE::skew_symmetric(phi);
-        const Eigen::Matrix3d J = Eigen::Matrix3d::Identity()
-            + (1 - cos(theta)) / (theta * theta) * phi_hat
-            + (theta - sin(theta)) / (theta * theta * theta) * phi_hat * phi_hat;
+        const Eigen::Matrix3d J = Eigen::Matrix3d::Identity() + (1 - cos(theta)) / (theta * theta) * phi_hat + (theta - sin(theta)) / (theta * theta * theta) * phi_hat * phi_hat;
 
         return J;
     }
-    static Eigen::Matrix4d expSE3(const Eigen::Matrix<double, 6, 1>& xi) {
+    static Eigen::Matrix4d expSE3(const Eigen::Matrix<double, 6, 1> &xi)
+    {
         Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
         const Eigen::Vector3d rho = xi.head<3>();
         const Eigen::Vector3d phi = xi.tail<3>();
@@ -59,7 +60,7 @@ namespace OPTIMIZE_LYJ
 
         return T;
     }
-    //12-> R, t; 6->dt, dR
+    // 12-> R, t; 6->dt, dR
     class OptVarPose3d : public OptVar<double, 12, 6>
     {
     public:
@@ -67,58 +68,56 @@ namespace OPTIMIZE_LYJ
         ~OptVarPose3d() {}
 
         // 通过 OptVar 继承
-		bool update(double* _detX) override
-		{
-            //Eigen::Matrix<double, 6, 1> delta = Eigen::Map<Eigen::Matrix<double, 6, 1>>(_detX, 6);
-            //Eigen::Matrix4d delta_pose = expSE3(delta);
-            //Eigen::Matrix3d dR = delta_pose.block(0, 0, 3, 3);
-            //Eigen::Vector3d dett = delta_pose.block(0, 3, 3, 1);
-            //Eigen::Map<Eigen::Vector3d> t(m_data + 9, 3);
-            //Eigen::Map<Eigen::Matrix3d> R(m_data, 3, 3);
+        bool update(double *_detX) override
+        {
+            // Eigen::Matrix<double, 6, 1> delta = Eigen::Map<Eigen::Matrix<double, 6, 1>>(_detX, 6);
+            // Eigen::Matrix4d delta_pose = expSE3(delta);
+            // Eigen::Matrix3d dR = delta_pose.block(0, 0, 3, 3);
+            // Eigen::Vector3d dett = delta_pose.block(0, 3, 3, 1);
+            // Eigen::Map<Eigen::Vector3d> t(m_data + 9, 3);
+            // Eigen::Map<Eigen::Matrix3d> R(m_data, 3, 3);
             //// 更新旋转部分（李代数）
-            //R = dR * R;
+            // R = dR * R;
             //// 更新平移部分
-            //t = dett + dR * t;
-            //std::cout << R << std::endl;
-            //std::cout << t << std::endl;
-            //return true;
+            // t = dett + dR * t;
+            // std::cout << R << std::endl;
+            // std::cout << t << std::endl;
+            // return true;
 
-            Eigen::Matrix<double, 6, 1> detX = Eigen::Map<Eigen::Matrix<double, 6, 1>>(_detX, 6);
-            Eigen::Matrix4d dT = OPTIMIZE_BASE::se3_exp(detX);
+            // Eigen::Matrix<double, 6, 1> detX = Eigen::Map<Eigen::Matrix<double, 6, 1>>(_detX, 6);
+            // Eigen::Matrix4d dT = OPTIMIZE_BASE::se3_exp(detX);
+            // Eigen::Map<Eigen::Vector3d> t(m_data + 9, 3);
+            // Eigen::Map<Eigen::Matrix3d> R(m_data, 3, 3);
+            // Eigen::Vector3d dett = dT.block(0, 3, 3, 1);
+            // Eigen::Matrix3d dR = dT.block(0, 0, 3, 3);
+            // // 更新旋转部分（李代数）
+            // R = dR * R;
+            // // 更新平移部分
+            // t = dett + dR * t;
+            // std::cout << "T: " << *this << std::endl;
+            // return true;
+
+            // 左乘，不稳定，无法最优
+            Eigen::Map<Eigen::Vector3d> dett(_detX, 3);
+            // Eigen::Map<Eigen::Vector3d> detr(_detX + 3, 3);
             Eigen::Map<Eigen::Vector3d> t(m_data + 9, 3);
             Eigen::Map<Eigen::Matrix3d> R(m_data, 3, 3);
-            Eigen::Vector3d dett = dT.block(0, 3, 3, 1);
-            Eigen::Matrix3d dR = dT.block(0, 0, 3, 3);
-            // 更新旋转部分（李代数）
+            Eigen::Matrix3d dR = OPTIMIZE_BASE::ExpSO3(_detX[3], _detX[4], _detX[5]);
             R = dR * R;
-            // 更新平移部分
             t = dett + dR * t;
-            std::cout << "T: " << *this << std::endl;
+            std::cout << R << std::endl;
+            std::cout << t << std::endl;
             return true;
+        }
 
-   //         //左乘，不稳定，无法最优
-   //         Eigen::Map<Eigen::Vector3d> dett(_detX, 3);
-   //         //Eigen::Map<Eigen::Vector3d> detr(_detX + 3, 3);
-   //         Eigen::Map<Eigen::Vector3d> t(m_data + 9, 3);
-   //         Eigen::Map<Eigen::Matrix3d> R(m_data, 3, 3);
-   //         Eigen::Matrix3d dR = OPTIMIZE_BASE::ExpSO3(_detX[3], _detX[4], _detX[5]);
-			//R = dR * R;
-   //         t = dett + dR * t;
-   //         std::cout << R << std::endl;
-   //         std::cout << t << std::endl;
-			//return true;
-		}
-
-        friend std::ostream& operator<<(std::ostream& os, const OptVarPose3d& cls)
+        friend std::ostream &operator<<(std::ostream &os, const OptVarPose3d &cls)
         {
-            std::cout << cls.m_data[0] << " \t" << cls.m_data[3] << " \t" << cls.m_data[6] << " \t" << cls.m_data[9] << std::endl \
-                << cls.m_data[1] << " \t" << cls.m_data[4] << " \t" << cls.m_data[7] << " \t" << cls.m_data[10] << std::endl \
-                << cls.m_data[2] << " \t" << cls.m_data[5] << " \t" << cls.m_data[8] << " \t" << cls.m_data[11] << std::endl \
-                ;
+            std::cout << cls.m_data[0] << " \t" << cls.m_data[3] << " \t" << cls.m_data[6] << " \t" << cls.m_data[9] << std::endl
+                      << cls.m_data[1] << " \t" << cls.m_data[4] << " \t" << cls.m_data[7] << " \t" << cls.m_data[10] << std::endl
+                      << cls.m_data[2] << " \t" << cls.m_data[5] << " \t" << cls.m_data[8] << " \t" << cls.m_data[11] << std::endl;
             return os;
         }
     };
-
 
     class OptVarPose3Eulard : public OptVarPose3d
     {
@@ -127,7 +126,7 @@ namespace OPTIMIZE_LYJ
         ~OptVarPose3Eulard() {}
 
         // 通过 OptVar 继承
-        bool update(double* _detX) override
+        bool update(double *_detX) override
         {
             Eigen::Map<Eigen::Vector3d> t(m_data + 9, 3);
             Eigen::Map<Eigen::Matrix3d> R(m_data, 3, 3);
@@ -137,11 +136,11 @@ namespace OPTIMIZE_LYJ
             R = dR * R;
             // 更新平移部分
             t = dett + dR * t;
-            //std::cout <<"T" << m_vId<< std::endl << *this << std::endl;
+            // std::cout <<"T" << m_vId<< std::endl << *this << std::endl;
             return true;
         }
-    private:
 
+    private:
     };
 
 }

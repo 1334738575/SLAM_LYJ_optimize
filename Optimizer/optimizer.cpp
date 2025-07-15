@@ -6,35 +6,41 @@
 namespace OPTIMIZE_LYJ
 {
 
-	OptimizerSmalld::OptimizerSmalld()
-	{}
-	OptimizerSmalld::~OptimizerSmalld()
-	{}
-	bool OptimizerSmalld::generateAB(double& _err)
-	{
+    OptimizerSmalld::OptimizerSmalld()
+    {
+    }
+    OptimizerSmalld::~OptimizerSmalld()
+    {
+    }
+    bool OptimizerSmalld::generateAB(double &_err)
+    {
         int rows = 0;
         int cols = 0;
-        std::vector<int> vLocs(m_vars.size() + 1, 0);
+        std::vector<int> vLocs(this->m_vars.size() + 1, 0);
         int tmp;
-        for (int i = 0; i < m_vars.size(); ++i) {
-            if (!m_vars[i]->isFixed())
-                cols += m_vars[i]->getTangentDim();
+        for (int i = 0; i < this->m_vars.size(); ++i)
+        {
+            if (!this->m_vars[i]->isFixed())
+                cols += this->m_vars[i]->getTangentDim();
             vLocs[i + 1] = cols;
         }
-        std::vector<int> fLocs(m_factors.size() + 1, 0);
-        for (int i = 0; i < m_factors.size(); ++i) {
-            auto factor = m_factors[i];
-            const auto& fId = factor->getId();
-            const auto& f2vs = m_factor2Vars[fId];
-            if (checkEnable(m_vars, f2vs, factor)) {
+        std::vector<int> fLocs(this->m_factors.size() + 1, 0);
+        for (int i = 0; i < this->m_factors.size(); ++i)
+        {
+            auto factor = this->m_factors[i];
+            const auto &fId = factor->getId();
+            const auto &f2vs = this->m_factor2Vars[fId];
+            if (checkEnable(this->m_vars, f2vs, factor))
+            {
                 factor->setEnable(true);
-                rows += m_factors[i]->getEDim();
+                rows += this->m_factors[i]->getEDim();
             }
             else
                 factor->setEnable(false);
             fLocs[i + 1] = rows;
         }
-        if (rows == 0 || cols == 0) {
+        if (rows == 0 || cols == 0)
+        {
             std::cout << "no factor to optimize" << std::endl;
             return false;
         }
@@ -42,119 +48,128 @@ namespace OPTIMIZE_LYJ
         Eigen::VectorXd Err(rows);
 
         int connectCnt = 0;
-        std::vector<OptVarAbr<double>*> vars;
+        std::vector<OptVarAbr<double> *> vars;
         std::vector<Eigen::MatrixXd> jacs;
-        std::vector<double*> jacPtrs;
+        std::vector<double *> jacPtrs;
         int tanDim, eDim;
-        for (int i = 0; i < m_factors.size(); ++i) {
-			auto factor = m_factors[i];
+        for (int i = 0; i < this->m_factors.size(); ++i)
+        {
+            auto factor = this->m_factors[i];
             if (!factor->isEnable())
                 continue;
-			const auto& fId = factor->getId();
-			const auto& fLoc = fLocs[fId];
+            const auto &fId = factor->getId();
+            const auto &fLoc = fLocs[fId];
             eDim = factor->getEDim();
-            const auto& f2vs = m_factor2Vars[fId];
+            const auto &f2vs = this->m_factor2Vars[fId];
             connectCnt = f2vs.size();
 
             vars.resize(connectCnt);
             for (int j = 0; j < connectCnt; ++j)
-                vars[j] = m_vars[f2vs.connectId(j)].get();
+                vars[j] = this->m_vars[f2vs.connectId(j)].get();
 
             jacs.resize(connectCnt);
             jacPtrs.resize(connectCnt);
-            for (int j = 0; j < connectCnt; ++j) {
-                const auto& vId = f2vs.connectId(j);
-                if (m_vars[vId]->isFixed()) {
+            for (int j = 0; j < connectCnt; ++j)
+            {
+                const auto &vId = f2vs.connectId(j);
+                if (this->m_vars[vId]->isFixed())
+                {
                     jacPtrs[j] = nullptr;
                 }
-                else {
-                    const auto& vLoc = vLocs[vId];
-                    tanDim = m_vars[vId]->getTangentDim();
+                else
+                {
+                    const auto &vLoc = vLocs[vId];
+                    tanDim = this->m_vars[vId]->getTangentDim();
                     jacs[j].resize(eDim, tanDim);
                     jacPtrs[j] = jacs[j].data();
                 }
-			}
+            }
 
-			double* errPtr = Err.data() + fLoc;
-			factor->calculateErrAndJac(errPtr, jacPtrs.data(), 1, vars.data());
-        
-            for (int j = 0; j < connectCnt; ++j) {
-                const auto& vId = f2vs.connectId(j);
-                if (m_vars[vId]->isFixed()) {
+            double *errPtr = Err.data() + fLoc;
+            factor->calculateErrAndJac(errPtr, jacPtrs.data(), 1, vars.data());
+
+            for (int j = 0; j < connectCnt; ++j)
+            {
+                const auto &vId = f2vs.connectId(j);
+                if (this->m_vars[vId]->isFixed())
+                {
                     continue;
                 }
-                const auto& vLoc = vLocs[vId];
-                tanDim = m_vars[vId]->getTangentDim();
-                for (int ii = 0; ii < eDim; ++ii) {
-                    for (int jj = 0; jj < tanDim; ++jj) {
+                const auto &vLoc = vLocs[vId];
+                tanDim = this->m_vars[vId]->getTangentDim();
+                for (int ii = 0; ii < eDim; ++ii)
+                {
+                    for (int jj = 0; jj < tanDim; ++jj)
+                    {
                         Jac(fLoc + ii, vLoc + jj) = jacs[j](ii, jj);
                     }
                 }
             }
         }
 
-        //std::cout << "Jac: " << std::endl << Jac << std::endl;
-        //std::cout << "Err: " << std::endl << Err << std::endl;
+        // std::cout << "Jac: " << std::endl << Jac << std::endl;
+        // std::cout << "Err: " << std::endl << Err << std::endl;
         m_A = Jac.transpose() * Jac;
-		m_B = -1 * Jac.transpose() * Err;
+        m_B = -1 * Jac.transpose() * Err;
         _err = Err.norm();
 
-		return true;
-	}
-	bool OptimizerSmalld::solveDetX()
-	{
-        //std::cout << "before: " << std::endl;
-        //std::cout << "m_A: " << std::endl << m_A << std::endl;
-        //std::cout << "m_B: " << std::endl << m_B << std::endl;
+        return true;
+    }
+    bool OptimizerSmalld::solveDetX()
+    {
+        // std::cout << "before: " << std::endl;
+        // std::cout << "m_A: " << std::endl << m_A << std::endl;
+        // std::cout << "m_B: " << std::endl << m_B << std::endl;
         int dim = m_A.rows();
         for (int i = 0; i < dim; ++i)
             m_A(i, i) += 1e-6;
-        //std::cout << "after: " << std::endl;
-        //std::cout << "m_A: " << std::endl << m_A << std::endl;
-        //std::cout << "m_B: " << std::endl << m_B << std::endl;
-        // 创建求解器
+        // std::cout << "after: " << std::endl;
+        // std::cout << "m_A: " << std::endl << m_A << std::endl;
+        // std::cout << "m_B: " << std::endl << m_B << std::endl;
+        //  创建求解器
         Eigen::LDLT<Eigen::MatrixXd> solver;
         solver.compute(m_A);
-        if (solver.info() != Eigen::Success) {
-            //std::cerr << "Decomposition failed!" << std::endl;
+        if (solver.info() != Eigen::Success)
+        {
+            // std::cerr << "Decomposition failed!" << std::endl;
             return false;
         }
         // 求解 Ax = b
-        m_DetX = solver.solve(m_B);
+        this->m_DetX = solver.solve(m_B);
 
         // 检查求解结果
-        if (solver.info() != Eigen::Success) {
-            //std::cerr << "Solving failed!" << std::endl;
+        if (solver.info() != Eigen::Success)
+        {
+            // std::cerr << "Solving failed!" << std::endl;
             return false;
         }
-        //std::cout << "The solution is:\n" << m_DetX << std::endl;
-		return true;
-	}
-	bool OptimizerSmalld::updateX()
-	{
+        // std::cout << "The solution is:\n" << m_DetX << std::endl;
+        return true;
+    }
+    bool OptimizerSmalld::updateX()
+    {
         int cols = 0;
-        std::vector<int> vLocs(m_vars.size() + 1, 0);
+        std::vector<int> vLocs(this->m_vars.size() + 1, 0);
         int tmp;
-        for (int i = 0; i < m_vars.size(); ++i) {
-            if (!m_vars[i]->isFixed())
-                cols += m_vars[i]->getTangentDim();
+        for (int i = 0; i < this->m_vars.size(); ++i)
+        {
+            if (!this->m_vars[i]->isFixed())
+                cols += this->m_vars[i]->getTangentDim();
             vLocs[i + 1] = cols;
         }
-		for (int i = 0; i < m_vars.size(); ++i) {
-            auto var = m_vars[i];
+        for (int i = 0; i < this->m_vars.size(); ++i)
+        {
+            auto var = this->m_vars[i];
             if (var->isFixed())
                 continue;
-			const auto& vId = var->getId();
-			const auto& vLoc = vLocs[vId];
-			const auto& tanDim = var->getTangentDim();
-			double* detXPtr = m_DetX.data() + vLoc;
+            const auto &vId = var->getId();
+            const auto &vLoc = vLocs[vId];
+            const auto &tanDim = var->getTangentDim();
+            double *detXPtr = this->m_DetX.data() + vLoc;
             var->update(detXPtr);
-		}
-		return true;
-	}
-
-
-
+        }
+        return true;
+    }
 
     OptimizerLargeSparse::OptimizerLargeSparse()
     {
@@ -162,32 +177,36 @@ namespace OPTIMIZE_LYJ
     OptimizerLargeSparse::~OptimizerLargeSparse()
     {
     }
-    bool OptimizerLargeSparse::generateAB(double& _err)
+    bool OptimizerLargeSparse::generateAB(double &_err)
     {
         std::vector<Eigen::Triplet<double>> tripletLists;
         int rows = 0;
         int cols = 0;
-        std::vector<int> vLocs(m_vars.size() + 1, 0);
+        std::vector<int> vLocs(this->m_vars.size() + 1, 0);
         int tmp;
-        for (int i = 0; i < m_vars.size(); ++i) {
-            if(!m_vars[i]->isFixed())
-                cols += m_vars[i]->getTangentDim();
+        for (int i = 0; i < this->m_vars.size(); ++i)
+        {
+            if (!this->m_vars[i]->isFixed())
+                cols += this->m_vars[i]->getTangentDim();
             vLocs[i + 1] = cols;
         }
-        std::vector<int> fLocs(m_factors.size() + 1, 0);
-        for (int i = 0; i < m_factors.size(); ++i) {
-            auto factor = m_factors[i];
-            const auto& fId = factor->getId();
-            const auto& f2vs = m_factor2Vars[fId];
-            if (checkEnable(m_vars, f2vs, factor)) {
+        std::vector<int> fLocs(this->m_factors.size() + 1, 0);
+        for (int i = 0; i < this->m_factors.size(); ++i)
+        {
+            auto factor = this->m_factors[i];
+            const auto &fId = factor->getId();
+            const auto &f2vs = this->m_factor2Vars[fId];
+            if (checkEnable(this->m_vars, f2vs, factor))
+            {
                 factor->setEnable(true);
-                rows += m_factors[i]->getEDim();
+                rows += this->m_factors[i]->getEDim();
             }
             else
                 factor->setEnable(false);
             fLocs[i + 1] = rows;
         }
-        if (rows == 0 || cols == 0) {
+        if (rows == 0 || cols == 0)
+        {
             std::cout << "no factor to optimize" << std::endl;
             return false;
         }
@@ -195,51 +214,59 @@ namespace OPTIMIZE_LYJ
         Eigen::VectorXd Err(rows);
 
         int connectCnt = 0;
-        std::vector<OptVarAbr<double>*> vars;
+        std::vector<OptVarAbr<double> *> vars;
         std::vector<Eigen::MatrixXd> jacs;
-        std::vector<double*> jacPtrs;
+        std::vector<double *> jacPtrs;
         int tanDim, eDim;
-        for (int i = 0; i < m_factors.size(); ++i) {
-            auto factor = m_factors[i];
+        for (int i = 0; i < this->m_factors.size(); ++i)
+        {
+            auto factor = this->m_factors[i];
             if (!factor->isEnable())
                 continue;
-            const auto& fId = factor->getId();
-            const auto& fLoc = fLocs[fId];
+            const auto &fId = factor->getId();
+            const auto &fLoc = fLocs[fId];
             eDim = factor->getEDim();
-            const auto& f2vs = m_factor2Vars[fId];
+            const auto &f2vs = this->m_factor2Vars[fId];
             connectCnt = f2vs.size();
 
             vars.resize(connectCnt);
             for (int j = 0; j < connectCnt; ++j)
-                vars[j] = m_vars[f2vs.connectId(j)].get();
+                vars[j] = this->m_vars[f2vs.connectId(j)].get();
 
             jacs.resize(connectCnt);
             jacPtrs.resize(connectCnt);
-            for (int j = 0; j < connectCnt; ++j) {
-                const auto& vId = f2vs.connectId(j);
-                if (m_vars[vId]->isFixed()) {
+            for (int j = 0; j < connectCnt; ++j)
+            {
+                const auto &vId = f2vs.connectId(j);
+                if (this->m_vars[vId]->isFixed())
+                {
                     jacPtrs[j] = nullptr;
                 }
-                else {
-                    const auto& vLoc = vLocs[vId];
-                    tanDim = m_vars[vId]->getTangentDim();
+                else
+                {
+                    const auto &vLoc = vLocs[vId];
+                    tanDim = this->m_vars[vId]->getTangentDim();
                     jacs[j].resize(eDim, tanDim);
                     jacPtrs[j] = jacs[j].data();
                 }
             }
 
-            double* errPtr = Err.data() + fLoc;
+            double *errPtr = Err.data() + fLoc;
             factor->calculateErrAndJac(errPtr, jacPtrs.data(), 1, vars.data());
 
-            for (int j = 0; j < connectCnt; ++j) {
-                const auto& vId = f2vs.connectId(j);
-                if (m_vars[vId]->isFixed()) {
+            for (int j = 0; j < connectCnt; ++j)
+            {
+                const auto &vId = f2vs.connectId(j);
+                if (this->m_vars[vId]->isFixed())
+                {
                     continue;
                 }
-                const auto& vLoc = vLocs[vId];
-                tanDim = m_vars[vId]->getTangentDim();
-                for (int ii = 0; ii < eDim; ++ii) {
-                    for (int jj = 0; jj < tanDim; ++jj) {
+                const auto &vLoc = vLocs[vId];
+                tanDim = this->m_vars[vId]->getTangentDim();
+                for (int ii = 0; ii < eDim; ++ii)
+                {
+                    for (int jj = 0; jj < tanDim; ++jj)
+                    {
                         tripletLists.emplace_back(fLoc + ii, vLoc + jj, jacs[j](ii, jj));
                     }
                 }
@@ -258,44 +285,46 @@ namespace OPTIMIZE_LYJ
         // 创建求解器
         Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
         solver.compute(m_A);
-        if (solver.info() != Eigen::Success) {
-            //std::cerr << "Decomposition failed!" << std::endl;
+        if (solver.info() != Eigen::Success)
+        {
+            // std::cerr << "Decomposition failed!" << std::endl;
             return false;
         }
         // 求解 Ax = b
         m_DetX = solver.solve(m_B);
         // 检查求解结果
-        if (solver.info() != Eigen::Success) {
-            //std::cerr << "Solving failed!" << std::endl;
+        if (solver.info() != Eigen::Success)
+        {
+            // std::cerr << "Solving failed!" << std::endl;
             return false;
         }
-        //std::cout << "The solution is:\n" << m_DetX << std::endl;
+        // std::cout << "The solution is:\n" << m_DetX << std::endl;
         return true;
     }
     bool OptimizerLargeSparse::updateX()
     {
         int cols = 0;
-        std::vector<int> vLocs(m_vars.size() + 1, 0);
+        std::vector<int> vLocs(this->m_vars.size() + 1, 0);
         int tmp;
-        for (int i = 0; i < m_vars.size(); ++i) {
-            if (!m_vars[i]->isFixed())
-                cols += m_vars[i]->getTangentDim();
+        for (int i = 0; i < this->m_vars.size(); ++i)
+        {
+            if (!this->m_vars[i]->isFixed())
+                cols += this->m_vars[i]->getTangentDim();
             vLocs[i + 1] = cols;
         }
-        for (int i = 0; i < m_vars.size(); ++i) {
-            auto var = m_vars[i];
+        for (int i = 0; i < this->m_vars.size(); ++i)
+        {
+            auto var = this->m_vars[i];
             if (var->isFixed())
                 continue;
-            const auto& vId = var->getId();
-            const auto& vLoc = vLocs[vId];
-            const auto& tanDim = var->getTangentDim();
-            double* detXPtr = m_DetX.data() + vLoc;
+            const auto &vId = var->getId();
+            const auto &vLoc = vLocs[vId];
+            const auto &tanDim = var->getTangentDim();
+            double *detXPtr = this->m_DetX.data() + vLoc;
             var->update(detXPtr);
         }
         return true;
     }
-
-
 
     OptimizeLargeSRBA::OptimizeLargeSRBA()
     {
@@ -303,7 +332,7 @@ namespace OPTIMIZE_LYJ
     OptimizeLargeSRBA::~OptimizeLargeSRBA()
     {
     }
-    bool OptimizeLargeSRBA::generateAB(double& _err)
+    bool OptimizeLargeSRBA::generateAB(double &_err)
     {
         return false;
     }
