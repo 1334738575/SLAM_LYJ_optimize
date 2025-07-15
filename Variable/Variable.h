@@ -90,21 +90,43 @@ namespace OPTIMIZE_LYJ
             // Eigen::Map<Eigen::Matrix3d> R(m_data, 3, 3);
             // Eigen::Vector3d dett = dT.block(0, 3, 3, 1);
             // Eigen::Matrix3d dR = dT.block(0, 0, 3, 3);
+            // // // 更新旋转部分（李代数）
+            // // R = dR * R;
+            // // // 更新平移部分
+            // // t = dett + dR * t;
             // // 更新旋转部分（李代数）
-            // R = dR * R;
+            // R = R * dR;
             // // 更新平移部分
-            // t = dett + dR * t;
+            // t = t + R * dett;
             // std::cout << "T: " << *this << std::endl;
             // return true;
 
-            // 左乘，不稳定，无法最优
-            Eigen::Map<Eigen::Vector3d> dett(_detX, 3);
+            // // 左乘，不稳定，无法最优
+            // Eigen::Map<Eigen::Vector3d> dett(_detX, 3);
+            // // Eigen::Map<Eigen::Vector3d> detr(_detX + 3, 3);
+            // Eigen::Map<Eigen::Vector3d> t(m_data + 9, 3);
+            // Eigen::Map<Eigen::Matrix3d> R(m_data, 3, 3);
             // Eigen::Map<Eigen::Vector3d> detr(_detX + 3, 3);
+            // Eigen::Vector3d axis = detr.normalized();
+            // double theta = detr.norm();
+            // Eigen::Matrix3d dR = Eigen::AngleAxisd(theta, axis).toRotationMatrix();
+            // // Eigen::Matrix3d dR = OPTIMIZE_BASE::ExpSO3(_detX[3], _detX[4], _detX[5]);
+            // R = dR * R;
+            // t = dett + dR * t;
+            // std::cout << R << std::endl;
+            // std::cout << t << std::endl;
+            // return true;
+
+            // 右乘
+            Eigen::Map<Eigen::Vector3d> dett(_detX, 3);
             Eigen::Map<Eigen::Vector3d> t(m_data + 9, 3);
             Eigen::Map<Eigen::Matrix3d> R(m_data, 3, 3);
-            Eigen::Matrix3d dR = OPTIMIZE_BASE::ExpSO3(_detX[3], _detX[4], _detX[5]);
-            R = dR * R;
-            t = dett + dR * t;
+            Eigen::Map<Eigen::Vector3d> detr(_detX + 3, 3);
+            Eigen::Vector3d axis = detr.normalized();
+            double theta = detr.norm();
+            Eigen::Matrix3d dR = Eigen::AngleAxisd(theta, axis).toRotationMatrix();
+            R = R * dR;
+            t = t + R * dett;
             std::cout << R << std::endl;
             std::cout << t << std::endl;
             return true;

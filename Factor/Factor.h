@@ -142,17 +142,23 @@ namespace OPTIMIZE_LYJ
 
             Eigen::Matrix<double, 6, 1> err;
             err.setZero();
-            Eigen::Matrix<double, 4, 4> T;
-            T.setIdentity();
-            Eigen::Matrix<double, 4, 4> Tpri;
-            Tpri.setIdentity();
+            // Eigen::Matrix<double, 4, 4> T;
+            // T.setIdentity();
+            // Eigen::Matrix<double, 4, 4> Tpri;
+            // Tpri.setIdentity();
+            Eigen::Matrix<double, 3, 4> T;
+            T.setZero();
+            Eigen::Matrix<double, 3, 4> Tpri;
+            Tpri.setZero();
             T.block(0, 0, 3, 3) = Eigen::Map<const Eigen::Matrix3d>(varData, 3, 3);
             T.block(0, 3, 3, 1) = Eigen::Map<const Eigen::Vector3d>(varData + 9, 3);
             Tpri.block(0, 0, 3, 3) = Eigen::Map<const Eigen::Matrix3d>(m_obs, 3, 3);
             Tpri.block(0, 3, 3, 1) = Eigen::Map<const Eigen::Vector3d>(m_obs + 9, 3);
             // Eigen::Matrix<double, 6, 6> jac = OPTIMIZE_BASE::compute_prior_jacobian(T, Tpri, err);
+            // Eigen::Matrix<double, 6, 6> jac;
+            // OPTIMIZE_BASE::cal_jac_errT_T(Tpri, T, err, jac);
             Eigen::Matrix<double, 6, 6> jac;
-            OPTIMIZE_BASE::cal_jac_errT_T(Tpri, T, err, jac);
+            OPTIMIZE_BASE_TWC::cal_jac_errT_T(Tpri, T, err, jac);
             memcpy(_err, err.data(), sizeof(double) * 6);
             if (_jac[0])
             {

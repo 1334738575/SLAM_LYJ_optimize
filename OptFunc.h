@@ -115,6 +115,28 @@ namespace OPTIMIZE_LYJ
             Eigen::Matrix<double, 6, 6> &jacT12_Tw1, Eigen::Matrix<double, 6, 6> &jacT12_Tw2,
             Eigen::Matrix<double, 6, 1> &err);
     }
+
+    namespace OPTIMIZE_BASE_TWC
+    {
+        // using m3d = Eigen::Matrix3d;
+        using m33 = Eigen::Matrix3d;
+        using m34 = Eigen::Matrix<double, 3, 4>;
+        using m44 = Eigen::Matrix<double, 4, 4>;
+        using v2d = Eigen::Vector2d;
+        using v3d = Eigen::Vector3d;
+        using v4d = Eigen::Vector4d;
+        using v6d = Eigen::Matrix<double, 6, 1>;
+        // using m2d = Eigen::Matrix2d;
+        using m22 = Eigen::Matrix2d;
+        using m23 = Eigen::Matrix<double, 2, 3>;
+        using m26 = Eigen::Matrix<double, 2, 6>;
+        using m24 = Eigen::Matrix<double, 2, 4>;
+        using m36 = Eigen::Matrix<double, 3, 6>;
+        using m64 = Eigen::Matrix<double, 6, 4>;
+        using m66 = Eigen::Matrix<double, 6, 6>;
+
+        void cal_jac_errT_T(const m34 &priTwc, const m34 &Twc, v6d &err, m66 &jac);
+    }
 }
 
 #endif

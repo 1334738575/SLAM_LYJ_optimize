@@ -12,6 +12,7 @@
         "initializer_list": "cpp",
         "ranges": "cpp",
         "span": "cpp",
-        "eigen": "cpp"
+        "eigen": "cpp",
+        "*.inc": "cpp"
     }
 }

@@ -198,6 +198,7 @@ namespace OPTIMIZE_LYJ
         //---- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- - ;
         void cal_jac_errT_T(const m44 &priTcw, const m44 &Tcw, v6d &err, m66 &jac)
         {
+            // 弃用
             m33 Rcc = Tcw.block(0, 0, 3, 3) * priTcw.block(0, 0, 3, 3).transpose();
             v3d t = Rcc * priTcw.block(0, 3, 3, 1);
             v3d tcc = Tcw.block(0, 3, 3, 1) - t;
@@ -210,7 +211,7 @@ namespace OPTIMIZE_LYJ
             m33 dtdt = m33::Identity();
             jac.block(0, 0, 3, 3) = dtdt;
             m33 dtdR = skew_symmetric(t);
-            jac.block(0, 3, 3, 1) = -1 * dtdR;
+            jac.block(0, 3, 3, 3) = -1 * dtdR;
             m33 dRdR = m33::Identity() + (1 - cos(theta)) * (a * a.transpose() - m33::Identity()) + sin(theta) * skew_symmetric(a);
             jac.block(3, 3, 3, 3) = dRdR;
         }
@@ -505,28 +506,6 @@ namespace OPTIMIZE_LYJ
 
             return J;
         }
-        // void compute_prior_jacobian(
-        //     const double* T,
-        //     const double* Tpri,
-        //     double* jacobian
-        //) {
-        //     //Eigen::Map<const Eigen::Matrix3d> R(T, 9);
-        //     //Eigen::Map<const Eigen::Matrix3d> Rpri(Tpri, 9);
-        //     //Eigen::Map<const Eigen::Vector3d> t(T + 9, 3);
-        //     //Eigen::Map<const Eigen::Vector3d> tpri(Tpri + 9, 3);
-        //     //SE3 T_rel = T_prior.inverse() * T_current;
-
-        //    //// 计算李代数误差 ξ = log(T_rel)
-        //    //se3 xi = se3_log(T_rel);
-
-        //    //// 计算右雅可比矩阵的逆近似: J_r^{-1} ≈ I + 0.5 * ad(ξ)
-        //    //Eigen::Matrix<double, 6, 6> J = Eigen::Matrix<double, 6, 6>::Identity();
-        //    //if (xi.norm() > 1e-6) { // 避免小量计算带来的数值不稳定
-        //    //    J += 0.5 * ad_se3(xi);
-        //    //}
-
-        //    //return J;
-        //}
 
         // 反对称矩阵生成
         Eigen::Matrix3d skew(const Eigen::Vector3d &v)
@@ -757,6 +736,58 @@ namespace OPTIMIZE_LYJ
                 jac_e_4_T2_0, jac_e_4_T2_1, jac_e_4_T2_2, jac_e_4_T2_3, jac_e_4_T2_4, jac_e_4_T2_5,
                 jac_e_5_T2_0, jac_e_5_T2_1, jac_e_5_T2_2, jac_e_5_T2_3, jac_e_5_T2_4, jac_e_5_T2_5;
             err << err0, err1, err2, err3, err4, err5;
+        }
+
+    }
+
+    // 内部均以Twc为基础，右乘更新
+    namespace OPTIMIZE_BASE_TWC
+    {
+        void cal_jac_errT_T(const m34 &priTwc, const m34 &Twc, v6d &err, m66 &jac)
+        {
+            m33 Rcc = priTwc.block(0, 0, 3, 3).transpose() * Twc.block(0, 0, 3, 3);
+            v3d tcc = priTwc.block(0, 0, 3, 3).transpose() * (Twc.block(0, 3, 3, 1) - priTwc.block(0, 3, 3, 1));
+            Eigen::AngleAxisd ang(Rcc);
+            v3d a = ang.axis();
+            double theta = ang.angle();
+            err.block(3, 0, 3, 1) = a * theta;
+            err.block(0, 0, 3, 1) = tcc;
+            jac.setIdentity();
+            jac.block(0, 0, 3, 3) = priTwc.block(0, 0, 3, 3).transpose();
+            jac.block(3, 3, 3, 3) = Rcc;
+        }
+
+        void cal_jac_errUV_Tcw_Pw(const m34 &Twc, const m33 &K,
+                                  const v3d &Pw, const v2d &uv,
+                                  v2d &err, m26 &jac)
+        {
+            m33 Rcw = Twc.block(0, 0, 3, 3).transpose();
+            v3d t = Pw - Twc.block(0, 3, 3, 1);
+            v3d Pc = Rcw * t;
+            err(0) = uv(0) - K(0, 0) * Pc(0) / Pc(2) - K(0, 2);
+            err(1) = uv(1) - K(1, 1) * Pc(1) / Pc(2) - K(1, 2);
+
+            /*
+            -fx/Z   0       fxX/Z2
+            0       -fy/Z   fyY/Z2
+            */
+            /*
+            RwcT * (Pw - twc)^
+            */
+            jac.setZero();
+            Eigen::Matrix<double, 2, 3> dedPc;
+            dedPc << -1 * K(0, 0) / Pc(2), 0, K(0, 0) * Pc(0) / (Pc(2) * Pc(2)),
+                0, -1 * K(1, 1) / Pc(2), K(1, 1) * Pc(1) / (Pc(2) * Pc(2));
+            Eigen::Matrix<double, 3, 6> dPcdT;
+            dPcdT.block(0, 0, 3, 3) = -1 * Rcw;
+            dPcdT.block(0, 3, 3, 3) = OPTIMIZE_BASE::skew_symmetric(t);
+            jac = dedPc * dPcdT;
+        }
+
+        void cal_jac_errPlane_Pw(const v4d &planew, const v3d &Pw, double &err, v3d &jac)
+        {
+            err = planew(0) * Pw(0) + planew(1) * Pw(1) + planew(2) * Pw(2) + planew(3);
+            jac = planew.head(3);
         }
 
     }
