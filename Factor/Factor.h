@@ -242,23 +242,23 @@ namespace OPTIMIZE_LYJ
         double *m_obs = nullptr;
     };
 
-
     class OptFactorPlane_Point3d : public OptFactor<double, 1, 3>
     {
     public:
         OptFactorPlane_Point3d(const uint64_t _id) : OptFactor<double, 1, 3>(_id, OptFactorType::FACTOR_PLANE3D_POINT3D) {}
-        ~OptFactorPlane_Point3d() {
+        ~OptFactorPlane_Point3d()
+        {
             if (m_obs)
                 delete m_obs;
         }
-        void setObs(double* _obs)
+        void setObs(double *_obs)
         {
             if (m_obs == nullptr)
                 m_obs = new double[4];
             memcpy(m_obs, _obs, sizeof(double) * 4);
         }
 
-        bool calculateErrAndJac(double* _err, double** _jac, double _w, OptVarAbr<double>** _values) const override
+        bool calculateErrAndJac(double *_err, double **_jac, double _w, OptVarAbr<double> **_values) const override
         {
             if (!checkVDims(_values))
                 return false;
@@ -282,38 +282,38 @@ namespace OPTIMIZE_LYJ
             return true;
         }
 
-
-        friend std::ostream& operator<<(std::ostream& os, const OptFactorPlane_Point3d& cls)
+        friend std::ostream &operator<<(std::ostream &os, const OptFactorPlane_Point3d &cls)
         {
             std::cout << cls.m_obs[0] << " \t" << cls.m_obs[1] << " \t" << cls.m_obs[2] << " \t" << cls.m_obs[3] << std::endl;
             return os;
         }
 
     private:
-        double* m_obs = nullptr;
+        double *m_obs = nullptr;
     };
 
     class OptFactorUV_Pose3d_Point3d : public OptFactor<double, 2, 6, 3>
     {
     public:
         OptFactorUV_Pose3d_Point3d(const uint64_t _id) : OptFactor<double, 2, 6, 3>(_id, OptFactorType::FACTOR_UV_T3DPOINT3D) {}
-        ~OptFactorUV_Pose3d_Point3d() {
+        ~OptFactorUV_Pose3d_Point3d()
+        {
             if (m_obs)
                 delete m_obs;
             if (m_K)
                 delete m_K;
         }
-        void setObs(double* _obs, double* _K)
+        void setObs(double *_obs, double *_K)
         {
             if (m_obs == nullptr)
                 m_obs = new double[2];
             memcpy(m_obs, _obs, sizeof(double) * 2);
             if (m_K == nullptr)
                 m_K = new double[4];
-            memcpy(m_K, _obs, sizeof(double) * 4);
+            memcpy(m_K, _K, sizeof(double) * 4);
         }
 
-        bool calculateErrAndJac(double* _err, double** _jac, double _w, OptVarAbr<double>** _values) const override
+        bool calculateErrAndJac(double *_err, double **_jac, double _w, OptVarAbr<double> **_values) const override
         {
             if (!checkVDims(_values))
                 return false;
@@ -341,8 +341,17 @@ namespace OPTIMIZE_LYJ
             Eigen::Matrix<double, 2, 3> jacUV_Pw;
 
             OPTIMIZE_BASE_TWC::cal_jac_errUV_Tcw_Pw(Twc, K, Pw, UV, err, jacUV_Twc, jacUV_Pw);
+            // std::cout << "K: " << std::endl
+            //           << K << std::endl;
+            // std::cout << "jacUV_Twc: " << std::endl
+            //           << jacUV_Twc << std::endl;
+            // std::cout << "jacUV_Pw: " << std::endl
+            //           << jacUV_Pw << std::endl;
+            // std::cout << "err: " << std::endl
+            //           << m_obs[0] << " " << m_obs[1] << std::endl
+            //           << err << std::endl;
 
-            memcpy(_err, &err, sizeof(double));
+            memcpy(_err, &err, sizeof(double) * 2);
             if (_jac[0])
                 memcpy(_jac[0], jacUV_Twc.data(), sizeof(double) * 12);
             if (_jac[1])
@@ -350,16 +359,15 @@ namespace OPTIMIZE_LYJ
             return true;
         }
 
-
-
-        friend std::ostream& operator<<(std::ostream& os, const OptFactorUV_Pose3d_Point3d& cls)
+        friend std::ostream &operator<<(std::ostream &os, const OptFactorUV_Pose3d_Point3d &cls)
         {
             std::cout << cls.m_obs[0] << " \t" << cls.m_obs[1] << std::endl;
             return os;
         }
+
     private:
-        double* m_obs = nullptr;
-        double* m_K = nullptr;
+        double *m_obs = nullptr;
+        double *m_K = nullptr;
     };
 }
 

@@ -10,6 +10,8 @@ namespace OPTIMIZE_LYJ
     {
         Eigen::Matrix<double, 3, 4> relPose(const Eigen::Matrix<double, 3, 4> &_Tw1, const Eigen::Matrix<double, 3, 4> &_Tw2);
         Eigen::Matrix<double, 3, 4> relPose(const double *const _Tw1, const double *const _Tw2);
+        Eigen::Matrix<double, 3, 4> invPose(const Eigen::Matrix<double, 3, 4> &_T);
+        Eigen::Vector2d Point2Image(double *_K, const Eigen::Matrix<double, 3, 4> &_Tcw, double *_Pw);
 
         // using m3d = Eigen::Matrix3d;
         using m33 = Eigen::Matrix3d;
@@ -136,9 +138,9 @@ namespace OPTIMIZE_LYJ
         using m66 = Eigen::Matrix<double, 6, 6>;
 
         void cal_jac_errT_T(const m34 &priTwc, const m34 &Twc, v6d &err, m66 &jac);
-        void cal_jac_errUV_Tcw_Pw(const m34& Twc, const m33& K, const v3d& Pw, const v2d& uv,
-            v2d& err, m26& jacUV_Twc, m23& jac_UV_Pw);
-        void cal_jac_errPlane_Pw(const v4d& planew, const v3d& Pw, double& err, v3d& jac);
+        void cal_jac_errUV_Tcw_Pw(const m34 &Twc, const m33 &K, const v3d &Pw, const v2d &uv,
+                                  v2d &err, m26 &jacUV_Twc, m23 &jac_UV_Pw);
+        void cal_jac_errPlane_Pw(const v4d &planew, const v3d &Pw, double &err, v3d &jac);
     }
 }
 

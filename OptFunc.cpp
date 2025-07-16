@@ -25,6 +25,24 @@ namespace OPTIMIZE_LYJ
             return T12;
         }
 
+        Eigen::Matrix<double, 3, 4> invPose(const Eigen::Matrix<double, 3, 4> &_T)
+        {
+            Eigen::Matrix<double, 3, 4> invT;
+            invT.block(0, 0, 3, 3) = _T.block(0, 0, 3, 3).transpose();
+            invT.block(0, 3, 3, 1) = -1 * invT.block(0, 0, 3, 3) * _T.block(0, 3, 3, 1);
+            return invT;
+        }
+
+        Eigen::Vector2d Point2Image(double *_K, const Eigen::Matrix<double, 3, 4> &_Tcw, double *_Pw)
+        {
+            Eigen::Map<const Eigen::Vector3d> Pw(_Pw);
+            Eigen::Vector3d Pc = _Tcw.block(0, 0, 3, 3) * Pw + _Tcw.block(0, 3, 3, 1);
+            Eigen::Vector2d uv;
+            uv(0) = _K[0] * Pc[0] / Pc[2] + _K[2];
+            uv(1) = _K[1] * Pc[1] / Pc[2] + _K[3];
+            return uv;
+        }
+
         Eigen::Matrix3d skew_symmetric(const Eigen::Vector3d &v)
         {
             Eigen::Matrix3d S;
@@ -759,7 +777,7 @@ namespace OPTIMIZE_LYJ
 
         void cal_jac_errUV_Tcw_Pw(const m34 &Twc, const m33 &K,
                                   const v3d &Pw, const v2d &uv,
-                                  v2d &err, m26& jacUV_Twc, m23& jac_UV_Pw)
+                                  v2d &err, m26 &jacUV_Twc, m23 &jac_UV_Pw)
         {
             m33 Rcw = Twc.block(0, 0, 3, 3).transpose();
             v3d t = Pw - Twc.block(0, 3, 3, 1);

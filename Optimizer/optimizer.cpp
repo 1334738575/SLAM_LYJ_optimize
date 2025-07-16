@@ -131,7 +131,7 @@ namespace OPTIMIZE_LYJ
         solver.compute(m_A);
         if (solver.info() != Eigen::Success)
         {
-            // std::cerr << "Decomposition failed!" << std::endl;
+            std::cerr << "Decomposition failed!" << std::endl;
             return false;
         }
         // 求解 Ax = b
@@ -140,7 +140,7 @@ namespace OPTIMIZE_LYJ
         // 检查求解结果
         if (solver.info() != Eigen::Success)
         {
-            // std::cerr << "Solving failed!" << std::endl;
+            std::cerr << "Solving failed!" << std::endl;
             return false;
         }
         // std::cout << "The solution is:\n" << m_DetX << std::endl;
@@ -287,7 +287,7 @@ namespace OPTIMIZE_LYJ
         solver.compute(m_A);
         if (solver.info() != Eigen::Success)
         {
-            // std::cerr << "Decomposition failed!" << std::endl;
+            std::cerr << "Decomposition failed!" << std::endl;
             return false;
         }
         // 求解 Ax = b
@@ -295,7 +295,7 @@ namespace OPTIMIZE_LYJ
         // 检查求解结果
         if (solver.info() != Eigen::Success)
         {
-            // std::cerr << "Solving failed!" << std::endl;
+            std::cerr << "Solving failed!" << std::endl;
             return false;
         }
         // std::cout << "The solution is:\n" << m_DetX << std::endl;

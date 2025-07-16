@@ -18,11 +18,12 @@ namespace OPTIMIZE_LYJ
         // 通过 OptVar 继承
         bool update(double *_detX) override
         {
+            std::cout << "before: " << *this << std::endl;
             for (int i = 0; i < 3; ++i)
             {
                 m_data[i] += _detX[i];
             }
-            std::cout << *this << std::endl;
+            std::cout << "after: " << *this << std::endl;
             return true;
         }
         friend std::ostream &operator<<(std::ostream &os, const OptVarPoint3d &cls)
@@ -71,6 +72,8 @@ namespace OPTIMIZE_LYJ
         // 通过 OptVar 继承
         bool update(double *_detX) override
         {
+            std::cout << "before T: " << *this << std::endl;
+
             // Eigen::Matrix<double, 6, 1> delta = Eigen::Map<Eigen::Matrix<double, 6, 1>>(_detX, 6);
             // Eigen::Matrix4d delta_pose = expSE3(delta);
             // Eigen::Matrix3d dR = delta_pose.block(0, 0, 3, 3);
@@ -128,8 +131,8 @@ namespace OPTIMIZE_LYJ
             Eigen::Matrix3d dR = Eigen::AngleAxisd(theta, axis).toRotationMatrix();
             R = R * dR;
             t = t + R * dett;
-            std::cout << R << std::endl;
-            std::cout << t << std::endl;
+
+            std::cout << "after T: " << *this << std::endl;
             return true;
         }
 
