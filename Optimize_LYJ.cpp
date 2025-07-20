@@ -328,15 +328,17 @@ namespace OPTIMIZE_LYJ
 		optimizer.run();
 		return;
 	}
-	
+
 	using namespace std;
 	using namespace Eigen;
 	// 生成3D点云 ([-1,1]x[-1,1]x[2,5]范围)
-	vector<Vector3d> generate3DPoints(int num_points) {
+	vector<Vector3d> generate3DPoints(int num_points)
+	{
 		vector<Vector3d> points;
 		points.reserve(num_points);
 
-		for (int i = 0; i < num_points; ++i) {
+		for (int i = 0; i < num_points; ++i)
+		{
 			Vector3d p = Vector3d::Random();
 			p = p + Vector3d(0, 0, 2);
 			points.push_back(p);
@@ -344,7 +346,8 @@ namespace OPTIMIZE_LYJ
 		return points;
 	}
 	// 投影3D点到图像平面
-	Vector2d project(const Vector3d& p3d, const Matrix3d& K, const Eigen::Matrix<double, 3, 4>& T_cam) {
+	Vector2d project(const Vector3d &p3d, const Matrix3d &K, const Eigen::Matrix<double, 3, 4> &T_cam)
+	{
 		Matrix3d R = T_cam.block<3, 3>(0, 0);
 		Vector3d t = T_cam.block<3, 1>(0, 3);
 		Vector3d p_cam = R * p3d + t;
@@ -352,20 +355,21 @@ namespace OPTIMIZE_LYJ
 		return uv_hom.hnormalized();
 	}
 	// 验证重投影误差
-	void verifyReprojection(const vector<Vector3d>& points3d,
-		const vector<pair<Vector2d, Vector2d>>& matches,
-		const Matrix3d& K,
-		const Eigen::Matrix<double, 3, 4>& T1,
-		const Eigen::Matrix<double, 3, 4>& T2)
+	void verifyReprojection(const vector<Vector3d> &points3d,
+							const vector<pair<Vector2d, Vector2d>> &matches,
+							const Matrix3d &K,
+							const Eigen::Matrix<double, 3, 4> &T1,
+							const Eigen::Matrix<double, 3, 4> &T2)
 	{
 		double max_error = 0;
-		for (size_t i = 0; i < points3d.size(); ++i) {
+		for (size_t i = 0; i < points3d.size(); ++i)
+		{
 			Vector2d p1 = project(points3d[i], K, T1);
 			Vector2d p2 = project(points3d[i], K, T2);
 
 			double e1 = (p1 - matches[i].first).norm();
 			double e2 = (p2 - matches[i].second).norm();
-			max_error = max({ max_error, e1, e2 });
+			max_error = max({max_error, e1, e2});
 		}
 		cout << "Max reprojection error: " << max_error << " pixels" << endl;
 	}
@@ -380,24 +384,24 @@ namespace OPTIMIZE_LYJ
 		tTcw.block(0, 0, 3, 3) = Eigen::Matrix3d::Identity();
 		tTcw.block(0, 3, 3, 1) = Eigen::Vector3d(0, 2, 0);
 		Eigen::Matrix<double, 3, 4> tTwc = OPTIMIZE_BASE::invPose(tTcw);
-		//tTwc = tTcw; //TODO
+		// tTwc = tTcw; //TODO
 		Eigen::Matrix<double, 3, 4> tTcw2;
 		tTcw2.block<3, 3>(0, 0) = Eigen::AngleAxisd(0.2, Eigen::Vector3d::UnitX()).toRotationMatrix() *
-			Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitY()).toRotationMatrix();
+								  Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitY()).toRotationMatrix();
 		tTcw2.block<3, 1>(0, 3) = Eigen::Vector3d(0.5, -0.2, 0.3);
 		Eigen::Matrix<double, 3, 4> tTwc2 = OPTIMIZE_BASE::invPose(tTcw2);
-		//tTwc2 = tTcw2; //TODO
+		// tTwc2 = tTcw2; //TODO
 
 		// 生成3D点
 		const int num_points = 50;
 		auto points3d = generate3DPoints(num_points);
 		// 生成匹配点对
 		vector<pair<Vector2d, Vector2d>> matches;
-		for (const auto& p3d : points3d) {
+		for (const auto &p3d : points3d)
+		{
 			matches.emplace_back(
 				project(p3d, tK, tTcw),
-				project(p3d, tK, tTcw2)
-			);
+				project(p3d, tK, tTcw2));
 		}
 		// 验证数据正确性
 		verifyReprojection(points3d, matches, tK, tTcw, tTcw2);
@@ -414,65 +418,68 @@ namespace OPTIMIZE_LYJ
 		std::ofstream Pwsf("Pws.txt");
 		for (int i = 0; i < num_points; ++i)
 		{
-			Pwsf << points3d[i][0] << " " << points3d[i][1] << " " << points3d[i][2] << " " \
-				<< 255 << " " << 0 << " " << 0 \
-				<< std::endl;
+			Pwsf << points3d[i][0] << " " << points3d[i][1] << " " << points3d[i][2] << " "
+				 << 255 << " " << 0 << " " << 0
+				 << std::endl;
 		}
-		Pwsf << tTwc(0,3) << " " << tTwc(1, 3) << " " << tTwc(2, 3) << " " \
-			<< 0 << " " << 255 << " " << 0 \
-			<< std::endl;
+		Pwsf << tTwc(0, 3) << " " << tTwc(1, 3) << " " << tTwc(2, 3) << " "
+			 << 0 << " " << 255 << " " << 0
+			 << std::endl;
 		Eigen::Vector3d luw1 = tTwc.block(0, 0, 3, 3) * lu + tTwc.block(0, 3, 3, 1);
 		Eigen::Vector3d ruw1 = tTwc.block(0, 0, 3, 3) * ru + tTwc.block(0, 3, 3, 1);
 		Eigen::Vector3d rdw1 = tTwc.block(0, 0, 3, 3) * rd + tTwc.block(0, 3, 3, 1);
 		Eigen::Vector3d ldw1 = tTwc.block(0, 0, 3, 3) * ld + tTwc.block(0, 3, 3, 1);
-		Pwsf << luw1[0] << " " << luw1[1] << " " << luw1[2] << " " \
-			<< 0 << " " << 255 << " " << 0 \
-			<< std::endl;
-		Pwsf << ruw1[0] << " " << ruw1[1] << " " << ruw1[2] << " " \
-			<< 0 << " " << 255 << " " << 0 \
-			<< std::endl;
-		Pwsf << rdw1[0] << " " << rdw1[1] << " " << rdw1[2] << " " \
-			<< 0 << " " << 255 << " " << 0 \
-			<< std::endl;
-		Pwsf << ldw1[0] << " " << ldw1[1] << " " << ldw1[2] << " " \
-			<< 0 << " " << 255 << " " << 0 \
-			<< std::endl;
-		Pwsf << tTwc2(0, 3) << " " << tTwc2(1, 3) << " " << tTwc2(2, 3) << " " \
-			<< 0 << " " << 255 << " " << 0 \
-			<< std::endl;
+		Pwsf << luw1[0] << " " << luw1[1] << " " << luw1[2] << " "
+			 << 0 << " " << 255 << " " << 0
+			 << std::endl;
+		Pwsf << ruw1[0] << " " << ruw1[1] << " " << ruw1[2] << " "
+			 << 0 << " " << 255 << " " << 0
+			 << std::endl;
+		Pwsf << rdw1[0] << " " << rdw1[1] << " " << rdw1[2] << " "
+			 << 0 << " " << 255 << " " << 0
+			 << std::endl;
+		Pwsf << ldw1[0] << " " << ldw1[1] << " " << ldw1[2] << " "
+			 << 0 << " " << 255 << " " << 0
+			 << std::endl;
+		Pwsf << tTwc2(0, 3) << " " << tTwc2(1, 3) << " " << tTwc2(2, 3) << " "
+			 << 0 << " " << 255 << " " << 0
+			 << std::endl;
 		Eigen::Vector3d luw2 = tTwc2.block(0, 0, 3, 3) * lu + tTwc2.block(0, 3, 3, 1);
 		Eigen::Vector3d ruw2 = tTwc2.block(0, 0, 3, 3) * ru + tTwc2.block(0, 3, 3, 1);
 		Eigen::Vector3d rdw2 = tTwc2.block(0, 0, 3, 3) * rd + tTwc2.block(0, 3, 3, 1);
 		Eigen::Vector3d ldw2 = tTwc2.block(0, 0, 3, 3) * ld + tTwc2.block(0, 3, 3, 1);
-		Pwsf << luw2[0] << " " << luw2[1] << " " << luw2[2] << " " \
-			<< 0 << " " << 255 << " " << 0 \
-			<< std::endl;
-		Pwsf << ruw2[0] << " " << ruw2[1] << " " << ruw2[2] << " " \
-			<< 0 << " " << 255 << " " << 0 \
-			<< std::endl;
-		Pwsf << rdw2[0] << " " << rdw2[1] << " " << rdw2[2] << " " \
-			<< 0 << " " << 255 << " " << 0 \
-			<< std::endl;
-		Pwsf << ldw2[0] << " " << ldw2[1] << " " << ldw2[2] << " " \
-			<< 0 << " " << 255 << " " << 0 \
-			<< std::endl;
+		Pwsf << luw2[0] << " " << luw2[1] << " " << luw2[2] << " "
+			 << 0 << " " << 255 << " " << 0
+			 << std::endl;
+		Pwsf << ruw2[0] << " " << ruw2[1] << " " << ruw2[2] << " "
+			 << 0 << " " << 255 << " " << 0
+			 << std::endl;
+		Pwsf << rdw2[0] << " " << rdw2[1] << " " << rdw2[2] << " "
+			 << 0 << " " << 255 << " " << 0
+			 << std::endl;
+		Pwsf << ldw2[0] << " " << ldw2[1] << " " << ldw2[2] << " "
+			 << 0 << " " << 255 << " " << 0
+			 << std::endl;
 		for (int i = 0; i < num_points; ++i)
 		{
-			Pwsf << matches[i].first[0] << " " << matches[i].first[1] << " " << 1.0 << " " \
-				<< 0 << " " << 0 << " " << 255 \
-				<< std::endl;
-			Pwsf << matches[i].second[0] << " " << matches[i].second[1] << " " << 1.0 << " " \
-				<< 0 << " " << 0 << " " << 255 \
-				<< std::endl;
+			Pwsf << matches[i].first[0] << " " << matches[i].first[1] << " " << 1.0 << " "
+				 << 0 << " " << 0 << " " << 255
+				 << std::endl;
+			Pwsf << matches[i].second[0] << " " << matches[i].second[1] << " " << 1.0 << " "
+				 << 0 << " " << 0 << " " << 255
+				 << std::endl;
 		}
 		Pwsf.close();
-		
+
 		std::ofstream truef("true.txt");
-		truef << "true Twc1" << std::endl << tTwc << std::endl;
-		truef << "true Twc2" << std::endl << tTwc2 << std::endl;
+		truef << "true Twc1" << std::endl
+			  << tTwc << std::endl;
+		truef << "true Twc2" << std::endl
+			  << tTwc2 << std::endl;
 		for (int i = 0; i < num_points; ++i)
 		{
-			truef << "true Pw" << i << ":" << std::endl << points3d[i] << std::endl;
+			truef << "true Pw" << i << ":" << std::endl
+				  << points3d[i] << std::endl;
 		}
 		truef.close();
 
@@ -480,50 +487,51 @@ namespace OPTIMIZE_LYJ
 		uint64_t fId = 0;
 		std::vector<std::shared_ptr<OptVarAbr<double>>> Twcs;
 		std::vector<std::shared_ptr<OptVarAbr<double>>> Pws;
-		//OptimizerSmalld optimizer;
-		//OptimizerLargeSparse optimizer;
+		// OptimizerSmalld optimizer;
+		// OptimizerLargeSparse optimizer;
 		OptimizeLargeSRBA optimizer;
 
-		auto funcGeneratePointVertex = [&](Eigen::Vector3d& _Pw, uint64_t& _vId, bool _fix = false)
-			{
-				std::shared_ptr<OptVarAbr<double>> varPtr = std::make_shared<OptVarPoint3d>(_vId);
-				varPtr->setData(_Pw.data());
-				varPtr->setFixed(_fix);
-				optimizer.addVariable(varPtr);
-				Pws.push_back(varPtr);
-				++_vId;
-			};
-		auto funcGeneratePoseVertex = [&](Eigen::Matrix<double, 3, 4>& _Twc, uint64_t& _vId, bool _fix = false)
-			{
-				std::shared_ptr<OptVarAbr<double>> varPtr = std::make_shared<OptVarPose3d>(_vId);
-				varPtr->setData(_Twc.data());
-				varPtr->setFixed(_fix);
-				optimizer.addVariable(varPtr);
-				Twcs.push_back(varPtr);
-				++_vId;
-			};
+		auto funcGeneratePointVertex = [&](Eigen::Vector3d &_Pw, uint64_t &_vId, bool _fix = false)
+		{
+			std::shared_ptr<OptVarAbr<double>> varPtr = std::make_shared<OptVarPoint3d>(_vId);
+			varPtr->setData(_Pw.data());
+			varPtr->setFixed(_fix);
+			optimizer.addVariable(varPtr);
+			Pws.push_back(varPtr);
+			++_vId;
+		};
+		auto funcGeneratePoseVertex = [&](Eigen::Matrix<double, 3, 4> &_Twc, uint64_t &_vId, bool _fix = false)
+		{
+			std::shared_ptr<OptVarAbr<double>> varPtr = std::make_shared<OptVarPose3d>(_vId);
+			varPtr->setData(_Twc.data());
+			varPtr->setFixed(_fix);
+			optimizer.addVariable(varPtr);
+			Twcs.push_back(varPtr);
+			++_vId;
+		};
 		Eigen::Matrix<double, 3, 4> Twc = tTwc;
 		Eigen::Matrix<double, 3, 4> Twc2 = tTwc2;
-		//Eigen::Matrix3d dRwc2 = Eigen::AngleAxisd(0.2, Eigen::Vector3d::UnitX()).toRotationMatrix();
-		//Twc2.block<3, 3>(0, 0) = dRwc2 * Twc2.block<3, 3>(0, 0);
-		//Twc2(0, 3) += 1;
-		//Twc2(1, 3) = 0.0;
-		//Twc2(2, 3) = 0.0;
+		// Eigen::Matrix3d dRwc2 = Eigen::AngleAxisd(0.2, Eigen::Vector3d::UnitX()).toRotationMatrix();
+		// Twc2.block<3, 3>(0, 0) = dRwc2 * Twc2.block<3, 3>(0, 0);
+		// Twc2(0, 3) += 1;
+		// Twc2(1, 3) = 0.0;
+		// Twc2(2, 3) = 0.0;
 		funcGeneratePoseVertex(Twc, vId, true);
-		funcGeneratePoseVertex(Twc2, vId, false);		
-		OptVarPose3d* v1 = dynamic_cast<OptVarPose3d*>(Twcs[0].get());
-		OptVarPose3d* v2 = dynamic_cast<OptVarPose3d*>(Twcs[1].get());
+		funcGeneratePoseVertex(Twc2, vId, false);
+		OptVarPose3d *v1 = dynamic_cast<OptVarPose3d *>(Twcs[0].get());
+		OptVarPose3d *v2 = dynamic_cast<OptVarPose3d *>(Twcs[1].get());
 		std::ofstream initf("init.txt");
 		initf << "init: " << std::endl
-			<< "Tw1: " << v1->getEigen() << std::endl
-			<< "Tw2: " << v2->getEigen() << std::endl;
+			  << "Tw1: " << v1->getEigen() << std::endl
+			  << "Tw2: " << v2->getEigen() << std::endl;
 		for (int i = 0; i < num_points; ++i)
 		{
-			//Eigen::Vector3d Pw = (Eigen::Vector3d(points3d[i][0], points3d[i][1], points3d[i][2]));
+			// Eigen::Vector3d Pw = (Eigen::Vector3d(points3d[i][0], points3d[i][1], points3d[i][2]));
 			Eigen::Vector3d Pw = (Eigen::Vector3d(points3d[i][0] + 1, points3d[i][1] + 0.1, points3d[i][2]));
 			funcGeneratePointVertex(Pw, vId, false);
-			OptVarPoint3d* v = dynamic_cast<OptVarPoint3d*>(Pws[i].get());
-			initf << "Pw" << i << ":" << std::endl << v->getEigen() << std::endl;
+			OptVarPoint3d *v = dynamic_cast<OptVarPoint3d *>(Pws[i].get());
+			initf << "Pw" << i << ":" << std::endl
+				  << v->getEigen() << std::endl;
 		}
 		initf.close();
 
@@ -532,20 +540,20 @@ namespace OPTIMIZE_LYJ
 		K[1] = tK(1, 1);
 		K[2] = tK(0, 2);
 		K[3] = tK(1, 2);
-		auto funcGenerateFactor = [&](Eigen::Vector2d& _ob, uint64_t _vId1, uint64_t _vId2, uint64_t& _fId)
-			{
-				std::shared_ptr<OptFactorAbr<double>> factorPtr = std::make_shared<OptFactorUV_Pose3d_Point3d>(_fId);
-				OptFactorUV_Pose3d_Point3d* factor = dynamic_cast<OptFactorUV_Pose3d_Point3d*>(factorPtr.get());
-				factor->setObs(_ob.data(), K.data());
-				std::vector<uint64_t> vIds;
-				vIds.push_back(_vId1);
-				vIds.push_back(_vId2);
-				optimizer.addFactor(factorPtr, vIds);
-				++_fId;
-			};
+		auto funcGenerateFactor = [&](Eigen::Vector2d &_ob, uint64_t _vId1, uint64_t _vId2, uint64_t &_fId)
+		{
+			std::shared_ptr<OptFactorAbr<double>> factorPtr = std::make_shared<OptFactorUV_Pose3d_Point3d>(_fId);
+			OptFactorUV_Pose3d_Point3d *factor = dynamic_cast<OptFactorUV_Pose3d_Point3d *>(factorPtr.get());
+			factor->setObs(_ob.data(), K.data());
+			std::vector<uint64_t> vIds;
+			vIds.push_back(_vId1);
+			vIds.push_back(_vId2);
+			optimizer.addFactor(factorPtr, vIds);
+			++_fId;
+		};
 		for (int i = 0; i < num_points; ++i)
 		{
-			auto& obs = matches[i];
+			auto &obs = matches[i];
 			funcGenerateFactor(obs.first, Twcs[0]->getId(), Pws[i]->getId(), fId);
 			funcGenerateFactor(obs.second, Twcs[1]->getId(), Pws[i]->getId(), fId);
 		}
@@ -554,12 +562,13 @@ namespace OPTIMIZE_LYJ
 
 		std::ofstream finalf("final.txt");
 		finalf << "final: " << std::endl
-			<< "Tw1: " << v1->getEigen() << std::endl
-			<< "Tw2: " << v2->getEigen() << std::endl;
+			   << "Tw1: " << v1->getEigen() << std::endl
+			   << "Tw2: " << v2->getEigen() << std::endl;
 		for (int i = 0; i < num_points; ++i)
 		{
-			OptVarPoint3d* v = dynamic_cast<OptVarPoint3d*>(Pws[i].get());
-			finalf << "Pw" << i << ":" << std::endl << v->getEigen() << std::endl;
+			OptVarPoint3d *v = dynamic_cast<OptVarPoint3d *>(Pws[i].get());
+			finalf << "Pw" << i << ":" << std::endl
+				   << v->getEigen() << std::endl;
 		}
 		finalf.close();
 
