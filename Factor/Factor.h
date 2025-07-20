@@ -340,16 +340,17 @@ namespace OPTIMIZE_LYJ
             Eigen::Matrix<double, 2, 6> jacUV_Twc;
             Eigen::Matrix<double, 2, 3> jacUV_Pw;
 
-            OPTIMIZE_BASE_TWC::cal_jac_errUV_Tcw_Pw(Twc, K, Pw, UV, err, jacUV_Twc, jacUV_Pw);
-            // std::cout << "K: " << std::endl
-            //           << K << std::endl;
-            // std::cout << "jacUV_Twc: " << std::endl
-            //           << jacUV_Twc << std::endl;
-            // std::cout << "jacUV_Pw: " << std::endl
-            //           << jacUV_Pw << std::endl;
-            // std::cout << "err: " << std::endl
-            //           << m_obs[0] << " " << m_obs[1] << std::endl
-            //           << err << std::endl;
+            OPTIMIZE_BASE_TWC::cal_jac_errUV_Twc_Pw(Twc, K, Pw, UV, err, jacUV_Twc, jacUV_Pw);
+            //OPTIMIZE_BASE_TCW::cal_jac_errUV_Tcw_Pw(Twc, K, Pw, UV, err, jacUV_Twc, jacUV_Pw);
+             //std::cout << "K: " << std::endl
+             //          << K << std::endl;
+             //std::cout << "jacUV_Twc: " << std::endl
+             //          << jacUV_Twc << std::endl;
+             //std::cout << "jacUV_Pw: " << std::endl
+             //          << jacUV_Pw << std::endl;
+             //std::cout << "err: " << std::endl
+             //          << m_obs[0] << " " << m_obs[1] << std::endl
+             //          << err << std::endl;
 
             memcpy(_err, &err, sizeof(double) * 2);
             if (_jac[0])

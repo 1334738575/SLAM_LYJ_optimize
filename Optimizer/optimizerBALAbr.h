@@ -150,10 +150,10 @@ namespace OPTIMIZE_LYJ
 					return false;
 				if (!solveDetX())
 					return false;
-				if (!updateX())
-					return false;
 				if (isFinish(i, err))
 					break;
+				if (!updateX())
+					return false;
 			}
 			return true;
 		}

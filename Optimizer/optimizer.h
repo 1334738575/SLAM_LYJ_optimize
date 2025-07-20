@@ -70,6 +70,18 @@ namespace OPTIMIZE_LYJ
 
 		bool updateX() override;
 
+	private:
+		Eigen::MatrixXd m_A;
+		Eigen::VectorXd m_B;
+		Eigen::VectorXd m_DetX;
+
+
+		Eigen::MatrixXd newJac;
+		Eigen::VectorXd newErr;
+		Eigen::MatrixXd newJac2;
+		Eigen::MatrixXd newJac3;
+		Eigen::VectorXd newErr2;
+		Eigen::VectorXd newDetX;
 	};
 
 

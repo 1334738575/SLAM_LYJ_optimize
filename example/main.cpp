@@ -5,291 +5,93 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-#include <unsupported/Eigen/MatrixFunctions> // 用于矩阵指数运算
+#include <vector>
 
 using namespace Eigen;
+using namespace std;
 
-// 定义SE(3)相关操作
-typedef Matrix<double, 6, 1> Vector6d;
-typedef Matrix<double, 6, 6> Matrix6d;
+// 生成3D点云 ([-1,1]x[-1,1]x[2,5]范围)
+vector<Vector3d> generate3DPoints(int num_points) {
+    vector<Vector3d> points;
+    points.reserve(num_points);
 
-Eigen::Matrix3d skew(const Eigen::Vector3d &v)
-{
-    Eigen::Matrix3d S;
-    S << 0, -v(2), v(1), v(2), 0, -v(0), -v(1), v(0), 0;
-    return S;
-}
-
-// 计算SO(3)右雅可比矩阵
-Matrix3d computeJacobianSO3(const Vector3d &phi)
-{
-    const double theta = phi.norm();
-    if (theta < 1e-6)
-        return Matrix3d::Identity();
-
-    const Matrix3d phi_hat = skew(phi);
-    const Matrix3d J = Matrix3d::Identity() + (1 - cos(theta)) / (theta * theta) * phi_hat + (theta - sin(theta)) / (theta * theta * theta) * phi_hat * phi_hat;
-
-    return J;
-}
-
-// 将李代数向量转换为4x4变换矩阵
-Isometry3d expSE3(const Vector6d &xi)
-{
-    Isometry3d T = Isometry3d::Identity();
-    const Vector3d rho = xi.head<3>();
-    const Vector3d phi = xi.tail<3>();
-
-    // 旋转部分
-    const Matrix3d R = AngleAxisd(phi.norm(), phi.normalized()).toRotationMatrix();
-
-    // 平移部分
-    const Matrix3d J = computeJacobianSO3(phi);
-    T.linear() = R;
-    T.translation() = J * rho;
-
-    return T;
-}
-Eigen::Matrix4d expSE3_2(const Vector6d &xi)
-{
-    Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
-    const Vector3d rho = xi.head<3>();
-    const Vector3d phi = xi.tail<3>();
-
-    // 旋转部分
-    const Matrix3d R = AngleAxisd(phi.norm(), phi.normalized()).toRotationMatrix();
-
-    // 平移部分
-    const Matrix3d J = computeJacobianSO3(phi);
-    T.block(0, 0, 3, 3) = R;
-    T.block(0, 3, 3, 1) = J * rho;
-
-    return T;
-}
-
-// 计算SO(3)右雅可比逆矩阵
-Matrix3d computeJacobianInvSO3(const Vector3d &phi)
-{
-    const double theta = phi.norm();
-    if (theta < 1e-6)
-        return Matrix3d::Identity();
-
-    const Matrix3d phi_hat = skew(phi);
-    const Matrix3d J_inv = Matrix3d::Identity() - 0.5 * phi_hat + (1.0 / (theta * theta) - (1 + cos(theta)) / (2 * theta * sin(theta))) * phi_hat * phi_hat;
-
-    return J_inv;
-}
-
-// 将变换矩阵转换为李代数向量
-Vector6d logSE3(const Isometry3d &T)
-{
-    Vector6d xi;
-    const AngleAxisd aa(T.linear());
-
-    // 旋转部分
-    const Vector3d phi = aa.angle() * aa.axis();
-    const Matrix3d J_inv = computeJacobianInvSO3(phi);
-
-    // 平移部分
-    const Vector3d rho = J_inv * T.translation();
-
-    xi << rho, phi;
-    return xi;
-}
-// 将变换矩阵转换为李代数向量
-Vector6d logSE3(const Eigen::Matrix4d &T)
-{
-    Vector6d xi;
-    Eigen::Matrix3d R = T.block(0, 0, 3, 3);
-    const AngleAxisd aa(R);
-
-    // 旋转部分
-    const Vector3d phi = aa.angle() * aa.axis();
-    const Matrix3d J_inv = computeJacobianInvSO3(phi);
-
-    // 平移部分
-    const Vector3d rho = J_inv * T.block(0, 3, 3, 1);
-
-    xi << rho, phi;
-    return xi;
-}
-
-// 先验因子类
-class PriorFactor
-{
-public:
-    PriorFactor(const Isometry3d &prior_pose)
-        : prior_pose_(prior_pose)
-    {
+    for (int i = 0; i < num_points; ++i) {
+        Vector3d p = Vector3d::Random();
+        p = p + Vector3d(0, 0, 2);
+        points.push_back(p);
     }
-    PriorFactor(const Eigen::Matrix4d &prior_pose_m)
-        : prior_pose_m_(prior_pose_m)
-    {
+    return points;
+}
+
+// 投影3D点到图像平面
+Vector2d project(const Vector3d& p3d, const Matrix3d& K, const Matrix4d& T_cam) {
+    Matrix3d R = T_cam.block<3, 3>(0, 0);
+    Vector3d t = T_cam.block<3, 1>(0, 3);
+    Vector3d p_cam = R * p3d + t;
+    Vector3d uv_hom = K * p_cam;
+    return uv_hom.hnormalized();
+}
+
+// 验证重投影误差
+void verifyReprojection(const vector<Vector3d>& points3d,
+    const vector<pair<Vector2d, Vector2d>>& matches,
+    const Matrix3d& K,
+    const Matrix4d& T1,
+    const Matrix4d& T2)
+{
+    double max_error = 0;
+    for (size_t i = 0; i < points3d.size(); ++i) {
+        Vector2d p1 = project(points3d[i], K, T1);
+        Vector2d p2 = project(points3d[i], K, T2);
+
+        double e1 = (p1 - matches[i].first).norm();
+        double e2 = (p2 - matches[i].second).norm();
+        max_error = max({ max_error, e1, e2 });
+    }
+    cout << "Max reprojection error: " << max_error << " pixels" << endl;
+}
+
+int main2() {
+    // 相机内参矩阵
+    Matrix3d K;
+    K << 500, 0, 320,
+        0, 500, 240,
+        0, 0, 1;
+
+    // 生成相机位姿
+    Matrix4d T1 = Matrix4d::Identity(); // 第一个相机位于原点
+
+    Matrix4d T2 = Matrix4d::Identity();
+    T2.block<3, 3>(0, 0) = AngleAxisd(0.2, Vector3d::UnitX()).toRotationMatrix() *
+        AngleAxisd(0.1, Vector3d::UnitY()).toRotationMatrix();
+    T2.block<3, 1>(0, 3) = Vector3d(0.5, -0.2, 0.3);
+
+    // 生成3D点
+    const int num_points = 50;
+    auto points3d = generate3DPoints(num_points);
+
+    // 生成匹配点对
+    vector<pair<Vector2d, Vector2d>> matches;
+    for (const auto& p3d : points3d) {
+        matches.emplace_back(
+            project(p3d, K, T1),
+            project(p3d, K, T2)
+        );
     }
 
-    // 计算残差和雅可比
-    void compute(const Isometry3d &current_pose,
-                 Vector6d &residual,
-                 Matrix6d &jacobian) const
-    {
-        // 计算残差：log(prior^{-1} * current)
-        const Isometry3d error = prior_pose_.inverse() * current_pose;
-        residual = logSE3(error);
+    // 验证数据正确性
+    verifyReprojection(points3d, matches, K, T1, T2);
 
-        // 计算雅可比矩阵
-        jacobian = computeJacobianInvSE3(residual);
+    // 打印部分数据示例
+    cout << "\nCamera Intrinsic Matrix:\n" << K << endl;
+    cout << "\nCamera Pose 1:\n" << T1 << endl;
+    cout << "\nCamera Pose 2:\n" << T2 << endl;
+    for (size_t i = 0; i < points3d.size(); ++i) {
+        cout << "\ncnt: " << i << endl;
+        cout << "\nSample 3D Point: " << points3d[i].transpose() << endl;
+        cout << "Projection in Camera1: " << matches[i].first.transpose() << endl;
+        cout << "Projection in Camera2: " << matches[i].second.transpose() << endl;
     }
-    // 计算残差和雅可比
-    void compute(const Eigen::Matrix4d &current_pose,
-                 Vector6d &residual,
-                 Matrix6d &jacobian) const
-    {
-        // 计算残差：log(prior^{-1} * current)
-        const Eigen::Matrix4d error = prior_pose_m_.inverse() * current_pose;
-        residual = logSE3(error);
-
-        // 计算雅可比矩阵
-        jacobian = computeJacobianInvSE3(residual);
-    }
-
-private:
-    // 计算SE(3)右雅可比逆矩阵
-    Matrix6d computeJacobianInvSE3(const Vector6d &xi) const
-    {
-        const Vector3d rho = xi.head<3>();
-        const Vector3d phi = xi.tail<3>();
-        const Matrix3d J_rot_inv = computeJacobianInvSO3(phi);
-
-        Matrix6d J_inv = Matrix6d::Zero();
-        J_inv.block<3, 3>(0, 0) = J_rot_inv;
-        J_inv.block<3, 3>(3, 3) = J_rot_inv;
-        J_inv.block<3, 3>(0, 3) = skew(rho) * J_rot_inv;
-
-        return J_inv;
-    }
-
-    Isometry3d prior_pose_;
-    Eigen::Matrix4d prior_pose_m_;
-};
-
-// 高斯-牛顿优化器
-void optimizePose(Isometry3d &current_pose,
-                  const PriorFactor &factor,
-                  int max_iterations = 10,
-                  double tolerance = 1e-6)
-{
-    for (int iter = 0; iter < max_iterations; ++iter)
-    {
-        // 计算残差和雅可比
-        Vector6d residual;
-        Matrix6d J;
-        factor.compute(current_pose, residual, J);
-
-        // 构建线性系统
-        Matrix6d H = J.transpose() * J;
-        Vector6d b = -J.transpose() * residual;
-
-        // 求解增量
-        Vector6d delta = H.ldlt().solve(b);
-
-        // 更新位姿
-        Isometry3d delta_pose = expSE3(delta);
-        current_pose = current_pose * delta_pose;
-        std::cout << "iter " << iter << " pose:\n"
-                  << current_pose.matrix() << std::endl;
-
-        // 检查收敛
-        if (delta.norm() < tolerance)
-            break;
-    }
-}
-void optimizePose(Eigen::Matrix4d &current_pose,
-                  const PriorFactor &factor,
-                  int max_iterations = 10,
-                  double tolerance = 1e-6)
-{
-    for (int iter = 0; iter < max_iterations; ++iter)
-    {
-        // 计算残差和雅可比
-        Vector6d residual;
-        Matrix6d J;
-        factor.compute(current_pose, residual, J);
-
-        // 构建线性系统
-        Matrix6d H = J.transpose() * J;
-        Vector6d b = -J.transpose() * residual;
-
-        // 求解增量
-        // Vector6d delta = H.ldlt().solve(b);
-        for (int i = 0; i < 6; ++i)
-            H(i, i) += 1e-6;
-        // 创建求解器
-        Eigen::LDLT<Eigen::MatrixXd> solver;
-        solver.compute(H);
-        // 求解 Ax = b
-        Vector6d delta = solver.solve(b);
-
-        // 更新位姿
-        Eigen::Matrix4d delta_pose = expSE3_2(delta);
-        current_pose = current_pose * delta_pose;
-        std::cout << "iter " << iter << " pose:\n"
-                  << current_pose.matrix() << std::endl;
-
-        // 检查收敛
-        if (delta.norm() < tolerance)
-            break;
-    }
-}
-
-int main2()
-{
-    // 初始化先验位姿和当前位姿
-    Isometry3d prior_pose = Isometry3d::Identity();
-    prior_pose.translation() << 1.0, 10, 222;
-    prior_pose.linear() = AngleAxisd(3.14 / 4, Vector3d::UnitZ()).toRotationMatrix();
-
-    Isometry3d current_pose = Isometry3d::Identity();
-
-    std::cout << "init pose:\n"
-              << current_pose.matrix() << std::endl;
-    // 创建先验因子
-    PriorFactor factor(prior_pose);
-
-    // 执行优化
-    optimizePose(current_pose, factor);
-
-    // 输出结果
-    std::cout << "Prior pose:\n"
-              << prior_pose.matrix() << std::endl;
-    std::cout << "Optimized pose:\n"
-              << current_pose.matrix() << std::endl;
-
-    return 0;
-}
-int main3()
-{
-    // 初始化先验位姿和当前位姿
-    Eigen::Matrix4d prior_pose = Eigen::Matrix4d::Identity();
-    Eigen::Vector3d prior_t(1.0, 10, 222);
-    Eigen::Matrix3d prior_R = AngleAxisd(3.14 / 4, Vector3d::UnitZ()).toRotationMatrix();
-    prior_pose.block(0, 0, 3, 3) = prior_R;
-    prior_pose.block(0, 3, 3, 1) = prior_t;
-
-    Eigen::Matrix4d current_pose = Eigen::Matrix4d::Identity();
-
-    std::cout << "init pose:\n"
-              << current_pose.matrix() << std::endl;
-    // 创建先验因子
-    PriorFactor factor(prior_pose);
-
-    // 执行优化
-    optimizePose(current_pose, factor);
-
-    // 输出结果
-    std::cout << "Prior pose:\n"
-              << prior_pose.matrix() << std::endl;
-    std::cout << "Optimized pose:\n"
-              << current_pose.matrix() << std::endl;
 
     return 0;
 }
@@ -303,16 +105,18 @@ Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>> testEigenMap(d
 
 int main(int argc, char *argv[])
 {
-    // double data[6] = { 1, 2, 3, 4, 5, 6 };
-    // auto mat = testEigenMap(data);
-    // std::cout << "eigen map2: " << std::endl << mat << std::endl;
-    // return 0;
+    //// double data[6] = { 1, 2, 3, 4, 5, 6 };
+    //// auto mat = testEigenMap(data);
+    //// std::cout << "eigen map2: " << std::endl << mat << std::endl;
+    //main2();
+    //return 0;
     std::cout << "Optimize Version: " << OPTIMIZE_LYJ::optimize_version() << std::endl;
     // OPTIMIZE_LYJ::test_optimize_P3d_P3d();
     //OPTIMIZE_LYJ::test_optimize_Pose3d_Pose3d();
-    // OPTIMIZE_LYJ::test_optimize_RelPose3d_Pose3d_Pose3d();
+     //OPTIMIZE_LYJ::test_optimize_RelPose3d_Pose3d_Pose3d();
     //OPTIMIZE_LYJ::test_optimize_Plane_P();
-    OPTIMIZE_LYJ::test_optimize_UV_Pose3d_P3d();
+    OPTIMIZE_LYJ::test_optimize_UV_Pose3d_P3d2();
+    //OPTIMIZE_LYJ::ceres_Check_UV_Pose3d_P3d2();
     // main3();
     return 0;
 }
