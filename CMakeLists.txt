@@ -4,8 +4,9 @@ project(OPTIMIZE_LYJ)
 # ################################setting##################################
 set(CMAKE_CXX_STANDARD 17)
 
-# set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_BUILD_TYPE "Debug")
+option(USE_CERES "use ceres" ON)
+set(CMAKE_BUILD_TYPE "Release")
+# set(CMAKE_BUILD_TYPE "Debug")
 
 if(WIN32)
     if(MSVC)
@@ -33,17 +34,25 @@ set(ALL_INCLUDE_DIRS)
 set(ALL_LIBRARIES)
 set(ALL_BINARY_DIRS)
 
-# set(Eigen3_DIR "D:/SLAM_LYJ/dependencies/Eigen/share/eigen3/cmake")
+set(Eigen3_DIR "D:/SLAM_LYJ/dependencies/Eigen/share/eigen3/cmake")
+set(Ceres_DIR "D:/SLAM_LYJ/dependencies/Ceres/lib/cmake/Ceres")
 
 # set(Eigen3_DIR "D:/SLAM_LYJ/dependencies/Eigen334/install2/share/eigen3/cmake")
 # set(Eigen3_DIR "D:/SLAM_LYJ/dependencies/Eigen334/install2/share/eigen3/cmake")
-set(Eigen3_DIR "C:\\Users\\DELL\\Desktop\\code\\eigen\\install3\\share\\eigen3\\cmake")
+# set(Eigen3_DIR "C:\\Users\\DELL\\Desktop\\code\\eigen\\install3\\share\\eigen3\\cmake")
 find_package(Eigen3)
 list(APPEND ALL_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS})
+if(USE_CERES)
+    # message(FATAL_ERROR 1111)
+    find_package(Ceres REQUIRED)
+    list(APPEND ALL_LIBRARIES Ceres::ceres)
+    list(APPEND ALL_BINARY_DIRS "D:/SLAM_LYJ/dependencies/Ceres/bin;")
+    list(APPEND ALL_BINARY_DIRS "D:/SLAM_LYJ/dependencies/Glog/bin;")
+    list(APPEND ALL_BINARY_DIRS "D:/SLAM_LYJ/dependencies/Gflags/Lib")
+endif()
 
-list(APPEND ALL_LIBRARIES Eigen3::Eigen)
+# list(APPEND ALL_LIBRARIES Eigen3::Eigen)
 
-# list(APPEND ALL_BINARY_DIRS )
 include_directories(${ALL_INCLUDE_DIRS})
 
 # ################################code##################################
@@ -61,8 +70,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 target_link_libraries(${PROJECT_NAME} PUBLIC
 
-    # ${ALL_LIBRARIES}
-    Eigen3::Eigen
+    ${ALL_LIBRARIES}
+    # Eigen3::Eigen
 )
 
 # ################################output##################################

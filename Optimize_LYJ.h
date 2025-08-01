@@ -12,6 +12,8 @@ namespace OPTIMIZE_LYJ
     OPTIMIZE_LYJ_API void test_optimize_RelPose3d_Pose3d_Pose3d();
     OPTIMIZE_LYJ_API void test_optimize_Plane_P();
     OPTIMIZE_LYJ_API void test_optimize_UV_Pose3d_P3d();
+    OPTIMIZE_LYJ_API void test_optimize_UV_Pose3d_P3d2();
+    OPTIMIZE_LYJ_API void ceres_Check_UV_Pose3d_P3d2();
 }
 
 #endif
