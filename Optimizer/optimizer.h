@@ -8,7 +8,7 @@
 
 namespace OPTIMIZE_LYJ
 {
-	class OptimizerSmalld : public OptimizerAbr<double>
+	class OPTIMIZE_LYJ_API OptimizerSmalld : public OptimizerAbr<double>
 	{
 	public:
 		OptimizerSmalld();
@@ -31,7 +31,7 @@ namespace OPTIMIZE_LYJ
 	};
 
 
-	class OptimizerLargeSparse : public OptimizerAbr<double>
+	class OPTIMIZE_LYJ_API OptimizerLargeSparse : public OptimizerAbr<double>
 	{
 	public:
 		OptimizerLargeSparse();
@@ -54,7 +54,7 @@ namespace OPTIMIZE_LYJ
 	};
 
 
-	class OptimizeLargeSRBA : public OptimizerAbr<double>
+	class OPTIMIZE_LYJ_API OptimizeLargeSRBA : public OptimizerAbr<double>
 	{
 	public:
 		OptimizeLargeSRBA();

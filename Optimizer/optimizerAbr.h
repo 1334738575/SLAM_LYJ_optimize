@@ -4,12 +4,13 @@
 #include "Factor/Factor.h"
 #include <map>
 #include <memory>
+#include <Optimize_LYJ_Defines.h>
 
 namespace OPTIMIZE_LYJ
 {
 
 	template <typename T>
-	class OptimizerAbr
+	class OPTIMIZE_LYJ_API OptimizerAbr
 	{
 	public:
 		class OptConnect
