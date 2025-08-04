@@ -81,19 +81,27 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 )
 
 # ################################output##################################
-if(DEFINED LIBRARY_LYJ_OUTPUT_PATH)
+if(DEFINED ${PROJECT_NAME}_LIBRARY_OUTPUT_PATH)
     set_target_properties(${PROJECT_NAME} PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_LYJ_OUTPUT_PATH}
-        ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_LYJ_OUTPUT_PATH}
-        RUNTIME_OUTPUT_DIRECTORY ${LIBRARY_LYJ_OUTPUT_PATH}
+        LIBRARY_OUTPUT_DIRECTORY ${${PROJECT_NAME}_LIBRARY_OUTPUT_PATH}
+        ARCHIVE_OUTPUT_DIRECTORY ${${PROJECT_NAME}_LIBRARY_OUTPUT_PATH}
+        RUNTIME_OUTPUT_DIRECTORY ${${PROJECT_NAME}_LIBRARY_OUTPUT_PATH}
     )
 endif()
 
 # ################################example##################################
-add_executable(test example/main.cpp)
-target_include_directories(test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(test PRIVATE ${PROJECT_NAME})
-set_target_properties(test PROPERTIES VS_DEBUGGER_ENVIRONMENT "PATH=${ALL_BINARY_DIRS}")
+add_executable(${PROJECT_NAME}Bin example/main.cpp)
+target_include_directories(${PROJECT_NAME}Bin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(${PROJECT_NAME}Bin PRIVATE ${PROJECT_NAME})
+if(DEFINED ${PROJECT_NAME}_LIBRARY_OUTPUT_PATH)
+    set_target_properties(${PROJECT_NAME}Bin PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY ${${PROJECT_NAME}_LIBRARY_OUTPUT_PATH}
+        ARCHIVE_OUTPUT_DIRECTORY ${${PROJECT_NAME}_LIBRARY_OUTPUT_PATH}
+        RUNTIME_OUTPUT_DIRECTORY ${${PROJECT_NAME}_LIBRARY_OUTPUT_PATH}
+    )
+endif()
+
+set_target_properties(${PROJECT_NAME}Bin PROPERTIES VS_DEBUGGER_ENVIRONMENT "PATH=${ALL_BINARY_DIRS}")
 
 # ################################install##################################
 
