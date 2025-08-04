@@ -121,10 +121,16 @@ install(DIRECTORY ./
     DESTINATION include
     FILES_MATCHING
     PATTERN "*.h" # 包含所有 .h 文件
-    PATTERN "build/*" # 匹配子目录名
-    EXCLUDE # 排除该目录及其内容
-    PATTERN "cmake/*" # 匹配子目录名
-    EXCLUDE # 排除该目录及其内容
+
+    # 排除指定目录（递归匹配）
+    PATTERN "build" EXCLUDE # 排除所有名为 build 的目录及内容
+    PATTERN "cmake" EXCLUDE # 排除所有名为 cmake 的目录及内容
+    PATTERN "install" EXCLUDE # 排除所有名为 install 的目录及内容
+    PATTERN "Lib" EXCLUDE # 排除所有名为 Lib 的目录及内容
+    PATTERN ".git" EXCLUDE # 排除所有名为 Lib 的目录及内容
+    PATTERN ".vscode" EXCLUDE # 排除所有名为 Lib 的目录及内容
+    PATTERN "example" EXCLUDE # 排除所有名为 Lib 的目录及内容
+    PATTERN "Output" EXCLUDE # 排除所有名为 Lib 的目录及内容
     PERMISSIONS
     OWNER_READ GROUP_READ WORLD_READ
 )
