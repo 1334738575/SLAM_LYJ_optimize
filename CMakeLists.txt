@@ -96,7 +96,6 @@ target_link_libraries(test PRIVATE ${PROJECT_NAME})
 set_target_properties(test PROPERTIES VS_DEBUGGER_ENVIRONMENT "PATH=${ALL_BINARY_DIRS}")
 
 # ################################install##################################
-set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/install)
 
 # 安装库和头文件
 install(TARGETS ${PROJECT_NAME}
