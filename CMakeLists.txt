@@ -22,8 +22,14 @@ elseif(LINUX)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -g")
 endif()
 
+set(${PROJECT_NAME}_LIBRARY_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/Output)
+set(${PROJECT_NAME}_CMAKE_FILE)
+set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install)
+
 # ################################cmake##################################
-if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/../cmake/FuncLyj.cmake)
+if(DEFINED ${PROJECT_NAME}_CMAKE_FILE)
+    include(${${PROJECT_NAME}_CMAKE_FILE})
+elseif(EXISTS ${CMAKE_CURRENT_LIST_DIR}/../cmake/FuncLyj.cmake)
     include(${CMAKE_CURRENT_LIST_DIR}/../cmake/FuncLyj.cmake)
 else()
     include(${CMAKE_CURRENT_LIST_DIR}/cmake/FuncLyj.cmake)
@@ -66,7 +72,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 target_include_directories(${PROJECT_NAME} PRIVATE
-    $<BUILD_INTERFACE:${ALL_INCLUDE_DIRS}>
+    ${ALL_INCLUDE_DIRS}
 )
 target_link_libraries(${PROJECT_NAME} PUBLIC
 
