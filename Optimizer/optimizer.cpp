@@ -215,7 +215,7 @@ namespace OPTIMIZE_LYJ
         }
         Eigen::SparseMatrix<double> Jac(rows, cols);
         Eigen::VectorXd Err(rows);
-        Err.setContant(0);
+        Err.setZero();
 
         int connectCnt = 0;
         std::vector<OptVarAbr<double> *> vars;
@@ -361,9 +361,9 @@ namespace OPTIMIZE_LYJ
             return false;
         }
         Eigen::MatrixXd Jac(rows, cols);
-        Jac.setContant(0);
+        Jac.setZero();
         Eigen::VectorXd Err(rows);
-        Err.setContant(0);
+        Err.setZero();
 
         int connectCnt = 0;
         std::vector<OptVarAbr<double> *> vars;
