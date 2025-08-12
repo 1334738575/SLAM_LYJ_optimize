@@ -145,14 +145,15 @@ namespace OPTIMIZE_LYJ
 
 		virtual bool run()
 		{
-			for (int i = 0; i < m_maxIterNum; ++i)
+			m_curIter = 0;
+			for (m_curIter = 0; m_curIter < m_maxIterNum; ++m_curIter)
 			{
 				T err = -1;
 				if (!generateAB(err))
 					return false;
 				if (!solveDetX())
 					return false;
-				if (isFinish(i, err))
+				if (isFinish(m_curIter, err))
 					break;
 				if (!updateX())
 					return false;
@@ -203,9 +204,11 @@ namespace OPTIMIZE_LYJ
 			_factor->setEnable(isEnable);
 			return isEnable;
 		}
+		inline void setMaxIter(int _maxIter) { m_maxIterNum = _maxIter; }
 
 	protected:
 		int m_maxIterNum = 30;
+		int m_curIter = 0;
 		T m_minErrTh = 1e-6;
 		T m_lastErr = -1;
 
