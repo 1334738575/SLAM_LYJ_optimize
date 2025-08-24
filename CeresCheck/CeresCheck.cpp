@@ -8,7 +8,7 @@ namespace OPTIMIZE_LYJ
 		using namespace Eigen;
 		using namespace std;
 
-        // 生成测试数据（与之前代码保持一致）
+        // 生成测试数据
         void generateTestData(vector<Vector3d>& points3d,
             vector<pair<Vector2d, Vector2d>>& matches,
             Matrix3d& K,
@@ -20,11 +20,12 @@ namespace OPTIMIZE_LYJ
                 0, 0, 1;
 
             // 生成相机位姿
-            double* T1_fixed = new double[6] {0.01, 0, 0, 0, 0, 0}; // [rx, ry, rz, tx, ty, tz] // 固定第一个相机位姿
+            double* T1_fixed = new double[6] {0.01, 0, 0, 1, 2, 3}; // [rx, ry, rz, tx, ty, tz] // 固定第一个相机位姿
             Matrix<double, 3, 3> R;
             AngleAxisToRotationMatrix<double>(T1_fixed, R.data());
             T1 = Matrix4d::Identity();
             T1.block(0, 0, 3, 3) = R;
+            T1.block<3, 1>(0, 3) = Vector3d(1, 2, 3);
 
             T2 = Matrix4d::Identity();
             T2.block<3, 3>(0, 0) = AngleAxisd(0.2, Vector3d::UnitX()).toRotationMatrix()
@@ -32,7 +33,7 @@ namespace OPTIMIZE_LYJ
             T2.block<3, 1>(0, 3) = Vector3d(0.5, -0.2, 0.3);
 
             // 生成3D点
-            const int num_points = 50;
+            const int num_points = 1000;
             points3d.resize(num_points);
             for (int i = 0; i < num_points; ++i) {
                 points3d[i] = Vector3d::Random()+ Vector3d(0, 0, 2);
@@ -63,7 +64,7 @@ namespace OPTIMIZE_LYJ
             std::cout << T1_true << std::endl;
             std::cout << T2_true << std::endl;
             for (auto& p : points3d_true) {
-                std::cout << p << std::endl;
+                std::cout << p(0) << " " << p(1) << " " << p(2) << std::endl;
             }
 
             // 添加噪声创建初始猜测
@@ -84,9 +85,11 @@ namespace OPTIMIZE_LYJ
             ceres::Problem problem;
 
             // 添加所有残差项
-            double* T1_fixed = new double[6] {0.01, 0, 0, 0, 0, 0}; // [rx, ry, rz, tx, ty, tz] // 固定第一个相机位姿
+            double* T1_fixed = new double[6] {0.01, 0, 0, 1, 2, 3}; // [rx, ry, rz, tx, ty, tz] // 固定第一个相机位姿
             problem.AddParameterBlock(T1_fixed, 6); // 显式添加参数块
             problem.SetParameterBlockConstant(T1_fixed); // 固定参数
+            //problem.AddParameterBlock(T2_est, 6); // 显式添加参数块
+            //problem.SetParameterBlockConstant(T2_est); // 固定参数
             //T1_fixed[0] = 0.001;
             for (size_t i = 0; i < matches.size(); ++i) {
                 // 第一相机的观测（固定T1）
@@ -150,7 +153,7 @@ namespace OPTIMIZE_LYJ
             std::cout << T1 << std::endl;
             std::cout << T2 << std::endl;
             for (auto& p : points3d_est) {
-                std::cout << p << std::endl;
+                std::cout << p(0) << " " << p(1) << " " << p(2) << std::endl;
             }
             std::cout << "\n优化结果验证:"
                 << "\n平均重投影误差: " << evaluateError() << " pixels"

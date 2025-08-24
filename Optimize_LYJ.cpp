@@ -483,6 +483,7 @@ namespace OPTIMIZE_LYJ
 		}
 		truef.close();
 
+
 		uint64_t vId = 0;
 		uint64_t fId = 0;
 		std::vector<std::shared_ptr<OptVarAbr<double>>> Twcs;
@@ -527,7 +528,7 @@ namespace OPTIMIZE_LYJ
 		for (int i = 0; i < num_points; ++i)
 		{
 			// Eigen::Vector3d Pw = (Eigen::Vector3d(points3d[i][0], points3d[i][1], points3d[i][2]));
-			Eigen::Vector3d Pw = (Eigen::Vector3d(points3d[i][0] + 1, points3d[i][1] + 0.1, points3d[i][2]));
+			Eigen::Vector3d Pw = (Eigen::Vector3d(points3d[i][0] + 10, points3d[i][1] + 0.1, points3d[i][2]));
 			funcGeneratePointVertex(Pw, vId, false);
 			OptVarPoint3d *v = dynamic_cast<OptVarPoint3d *>(Pws[i].get());
 			initf << "Pw" << i << ":" << std::endl
