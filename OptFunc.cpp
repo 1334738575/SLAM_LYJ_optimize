@@ -53,7 +53,7 @@ namespace OPTIMIZE_LYJ
         Eigen::Matrix3d NormalizeRotation(const Eigen::Matrix3d &R)
         {
             Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);
-            return svd.matrixU() * svd.matrixV();
+            return svd.matrixU() * svd.matrixV().transpose();
         }
         Eigen::Matrix3d ExpSO3(const double x, const double y, const double z)
         {
@@ -61,7 +61,7 @@ namespace OPTIMIZE_LYJ
             const double d = sqrt(d2);
             Eigen::Matrix3d W;
             W << 0.0, -z, y, z, 0.0, -x, -y, x, 0.0;
-            if (d < 1e-6)
+            if (d < 1e-5)
             {
                 Eigen::Matrix3d res = Eigen::Matrix3d::Identity() + W + 0.5 * W * W;
                 return NormalizeRotation(res);
@@ -803,7 +803,7 @@ namespace OPTIMIZE_LYJ
             jacUV_Twc = dedPc * dPcdT;
             Eigen::Matrix3d dPcPw = Rcw;
             jac_UV_Pw = dedPc * dPcPw;
-			if (std::isnan(err.norm()) || std::isnan(jacUV_Twc.norm()) || std::isnan(jac_UV_Pw.norm()))
+            if (std::isnan(err.norm()) || std::isnan(jacUV_Twc.norm()) || std::isnan(jac_UV_Pw.norm()))
             {
                 std::cout << err << std::endl;
                 std::cout << jacUV_Twc << std::endl;
@@ -822,21 +822,21 @@ namespace OPTIMIZE_LYJ
     // Tcw£¬×ó³Ë¸üÐÂ
     namespace OPTIMIZE_BASE_TCW
     {
-        void cal_jac_errT_T(const m34& priTcw, const m34& Tcw, v6d& err, m66& jac)
+        void cal_jac_errT_T(const m34 &priTcw, const m34 &Tcw, v6d &err, m66 &jac)
         {
-			m33 Rcc = Tcw.block(0, 0, 3, 3) * priTcw.block(0, 0, 3, 3).transpose();
-			v3d tcc = Tcw.block(0, 3, 3, 1) - Rcc * priTcw.block(0, 3, 3, 1);
-			Eigen::AngleAxisd ang(Rcc);
-			v3d a = ang.axis();
-			double theta = ang.angle();
-			err.block(3, 0, 3, 1) = a * theta;
-			err.block(0, 0, 3, 1) = tcc;
-			jac.setIdentity();
-			//jac.block(0, 0, 3, 3) = Tcw.block(0, 0, 3, 3);
-			jac.block(3, 3, 3, 3) = Rcc;
+            m33 Rcc = Tcw.block(0, 0, 3, 3) * priTcw.block(0, 0, 3, 3).transpose();
+            v3d tcc = Tcw.block(0, 3, 3, 1) - Rcc * priTcw.block(0, 3, 3, 1);
+            Eigen::AngleAxisd ang(Rcc);
+            v3d a = ang.axis();
+            double theta = ang.angle();
+            err.block(3, 0, 3, 1) = a * theta;
+            err.block(0, 0, 3, 1) = tcc;
+            jac.setIdentity();
+            // jac.block(0, 0, 3, 3) = Tcw.block(0, 0, 3, 3);
+            jac.block(3, 3, 3, 3) = Rcc;
         }
-        void cal_jac_errUV_Tcw_Pw(const m34& Tcw, const m33& K, const v3d& Pw, const v2d& uv,
-            v2d& err, m26& jacUV_Tcw, m23& jac_UV_Pw)
+        void cal_jac_errUV_Tcw_Pw(const m34 &Tcw, const m33 &K, const v3d &Pw, const v2d &uv,
+                                  v2d &err, m26 &jacUV_Tcw, m23 &jac_UV_Pw)
         {
             Eigen::Vector3d Pc = Tcw.block(0, 0, 3, 3) * Pw + Tcw.block(0, 3, 3, 1);
             err(0) = uv(0) - K(0, 0) * Pc(0) / Pc(2) - K(0, 2);
@@ -853,8 +853,8 @@ namespace OPTIMIZE_LYJ
             */
             jacUV_Tcw.setZero();
             Eigen::Matrix<double, 2, 3> dedPc;
-            dedPc << -1 * K(0, 0) / Pc(2), 0, K(0, 0)* Pc(0) / (Pc(2) * Pc(2)),
-                0, -1 * K(1, 1) / Pc(2), K(1, 1)* Pc(1) / (Pc(2) * Pc(2));
+            dedPc << -1 * K(0, 0) / Pc(2), 0, K(0, 0) * Pc(0) / (Pc(2) * Pc(2)),
+                0, -1 * K(1, 1) / Pc(2), K(1, 1) * Pc(1) / (Pc(2) * Pc(2));
             Eigen::Matrix<double, 3, 6> dPcdT;
             dPcdT.block(0, 0, 3, 3).setIdentity();
             dPcdT.block(0, 3, 3, 3) << 0, Pc(2), -1 * Pc(1),

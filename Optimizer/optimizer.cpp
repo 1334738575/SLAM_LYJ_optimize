@@ -114,7 +114,10 @@ namespace OPTIMIZE_LYJ
         //  std::cout << "Err: " << std::endl << Err << std::endl;
         m_A = Jac.transpose() * Jac;
         m_B = -1 * Jac.transpose() * Err;
-        _err = Err.norm();
+        _err = 0;
+        for (int i = 0; i < Err.rows(); ++i)
+            _err += std::abs(Err(i));
+        _err /= Err.rows();
 
         return true;
     }
@@ -280,7 +283,10 @@ namespace OPTIMIZE_LYJ
         Jac.setFromTriplets(tripletLists.begin(), tripletLists.end());
         m_A = Jac.transpose() * Jac;
         m_B = -1 * Jac.transpose() * Err;
-        _err = Err.norm();
+        _err = 0;
+        for (int i = 0; i < Err.rows(); ++i)
+            _err += std::abs(Err(i));
+        _err /= Err.rows();
 
         return true;
     }
@@ -469,7 +475,12 @@ namespace OPTIMIZE_LYJ
         //  std::cout << "Err: " << std::endl << Err << std::endl;
         m_A = newJac.transpose() * newJac;
         m_B = -1 * newJac.transpose() * newErr;
-        _err = newErr.norm() + newErr2.norm();
+        _err = 0;
+        for (int i = 0; i < newErr.rows(); ++i)
+            _err += std::abs(newErr(i));
+        for (int i = 0; i < newErr2.rows(); ++i)
+            _err += std::abs(newErr2(i));
+        _err /= newErr.rows() + newErr2.rows();
         return true;
     }
     bool OptimizeLargeSRBA::solveDetX()

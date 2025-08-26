@@ -21,22 +21,22 @@ namespace OPTIMIZE_LYJ
             if (std::isnan(_detX[0]) || std::isnan(_detX[1]) || std::isnan(_detX[2]))
             {
                 std::cout << _detX[0] << " " << _detX[1] << " " << _detX[2] << std::endl;
-                //std::cout << "OptVarPoint3d update error: detX contains NaN!" << std::endl;
-                //return false;
+                // std::cout << "OptVarPoint3d update error: detX contains NaN!" << std::endl;
+                // return false;
             }
-            //std::cout << "before: " << *this << std::endl;
+            // std::cout << "before: " << *this << std::endl;
             for (int i = 0; i < 3; ++i)
             {
                 m_data[i] += _detX[i];
             }
-            //std::cout << "after: " << *this << std::endl;
+            // std::cout << "after: " << *this << std::endl;
             return true;
         }
 
-		Eigen::Vector3d getEigen() const
-		{
-			return Eigen::Map<const Eigen::Vector3d>(m_data, 3);
-		}
+        Eigen::Vector3d getEigen() const
+        {
+            return Eigen::Map<const Eigen::Vector3d>(m_data, 3);
+        }
         friend std::ostream &operator<<(std::ostream &os, const OptVarPoint3d &cls)
         {
             std::cout << "(" << cls.m_data[0] << ", " << cls.m_data[1] << ", " << cls.m_data[2] << ")";
@@ -83,7 +83,7 @@ namespace OPTIMIZE_LYJ
         // 通过 OptVar 继承
         bool update(double *_detX) override
         {
-            //std::cout << "before T: " << *this << std::endl;
+            // std::cout << "before T: " << *this << std::endl;
 
             // Eigen::Matrix<double, 6, 1> delta = Eigen::Map<Eigen::Matrix<double, 6, 1>>(_detX, 6);
             // Eigen::Matrix4d delta_pose = expSE3(delta);
@@ -116,34 +116,34 @@ namespace OPTIMIZE_LYJ
             // std::cout << "T: " << *this << std::endl;
             // return true;
 
-            //// 左乘，不稳定，无法最优
-            //Eigen::Map<Eigen::Vector3d> dett(_detX, 3);
-            //// Eigen::Map<Eigen::Vector3d> detr(_detX + 3, 3);
-            //Eigen::Map<Eigen::Vector3d> t(m_data + 9, 3);
-            //Eigen::Map<Eigen::Matrix3d> R(m_data, 3, 3);
-            //Eigen::Map<Eigen::Vector3d> detr(_detX + 3, 3);
-            //Eigen::Vector3d axis = detr.normalized();
-            //double theta = detr.norm();
-            //Eigen::Matrix3d dR = Eigen::AngleAxisd(theta, axis).toRotationMatrix();
-            //// Eigen::Matrix3d dR = OPTIMIZE_BASE::ExpSO3(_detX[3], _detX[4], _detX[5]);
-            //R = dR * R;
-            //t = dett + dR * t;
-            ////std::cout << R << std::endl;
-            ////std::cout << t << std::endl;
-            //return true;
-
-            // 右乘
+            // 左乘
             Eigen::Map<Eigen::Vector3d> dett(_detX, 3);
+            // Eigen::Map<Eigen::Vector3d> detr(_detX + 3, 3);
             Eigen::Map<Eigen::Vector3d> t(m_data + 9, 3);
             Eigen::Map<Eigen::Matrix3d> R(m_data, 3, 3);
             Eigen::Map<Eigen::Vector3d> detr(_detX + 3, 3);
             Eigen::Vector3d axis = detr.normalized();
             double theta = detr.norm();
             Eigen::Matrix3d dR = Eigen::AngleAxisd(theta, axis).toRotationMatrix();
-            R = R * dR;
-            t = t + R * dett;
+            // Eigen::Matrix3d dR = OPTIMIZE_BASE::ExpSO3(_detX[3], _detX[4], _detX[5]);
+            R = dR * R;
+            t = dett + dR * t;
+            // std::cout << R << std::endl;
+            // std::cout << t << std::endl;
+            return true;
 
-            //std::cout << "after T: " << *this << std::endl;
+            // // 右乘
+            // Eigen::Map<Eigen::Vector3d> dett(_detX, 3);
+            // Eigen::Map<Eigen::Vector3d> t(m_data + 9, 3);
+            // Eigen::Map<Eigen::Matrix3d> R(m_data, 3, 3);
+            // Eigen::Map<Eigen::Vector3d> detr(_detX + 3, 3);
+            // Eigen::Vector3d axis = detr.normalized();
+            // double theta = detr.norm();
+            // Eigen::Matrix3d dR = Eigen::AngleAxisd(theta, axis).toRotationMatrix();
+            // R = R * dR;
+            // t = t + R * dett;
+
+            // std::cout << "after T: " << *this << std::endl;
             return true;
         }
 
@@ -159,7 +159,6 @@ namespace OPTIMIZE_LYJ
             return os;
         }
     };
-
 
     class OptVarPose3Eulard : public OptVarPose3d
     {
