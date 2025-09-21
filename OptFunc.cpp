@@ -817,6 +817,14 @@ namespace OPTIMIZE_LYJ
             jac = planew.head(3);
         }
 
+        OPTIMIZE_LYJ_API void cal_jac_errL_Pw(const v3d& LPw, const v3d& dirw, const v3d& Pw, v3d& err, m33& jac)
+        {
+            v3d dP = Pw - LPw;
+            jac = m33::Identity() - dirw * dirw.transpose();
+            err = jac * dP;
+            return;
+        }
+
     }
 
     // Tcw£¬×ó³Ë¸üÐÂ
@@ -869,6 +877,210 @@ namespace OPTIMIZE_LYJ
                 std::cout << jacUV_Tcw << std::endl;
                 std::cout << jac_UV_Pw << std::endl;
             }
+        }
+        OPTIMIZE_LYJ_API void cal_jac_errPc_Tcw_Pw(const m34& Tcw, const v3d& Pw, const v3d& Pc, v3d& err, m36& jacPc_Tcw, m33& jac_Pc_Pw)
+        {
+            Eigen::Vector3d Pwc = Tcw.block(0, 0, 3, 3) * Pw + Tcw.block(0, 3, 3, 1);
+            err = Pc - Pwc;
+
+            /*
+            1   0   0   0   Z   -Y
+            0   1   0   -Z  0   x
+            0   0   1   Y   -X  0
+            */
+            jacPc_Tcw.block(0, 0, 3, 3).setIdentity();
+            jacPc_Tcw.block(0, 3, 3, 3) << 0, Pwc(2), -1 * Pwc(1),
+                -1 * Pwc(2), 0, Pwc(0),
+                Pwc(1), -1 * Pwc(0), 0;
+            jac_Pc_Pw = Tcw.block(0, 0, 3, 3);
+            if (std::isnan(err.norm()) || std::isnan(jacPc_Tcw.norm()) || std::isnan(jac_Pc_Pw.norm()))
+            {
+                std::cout << err << std::endl;
+                std::cout << jacPc_Tcw << std::endl;
+                std::cout << jac_Pc_Pw << std::endl;
+            }
+            return;
+        }
+        OPTIMIZE_LYJ_API void cal_jac_errPc_Tcw_Tcw(
+            const m34& Tcw1, const v3d& Pc1, 
+            const m34& Tcw2, const v3d& Pc2, 
+            v3d& err, m36& jacPc_Tcw1, m36& jac_Pc_Tcw2)
+        {
+            const m33& Rcw1 = Tcw1.block(0, 0, 3, 3);
+            const m33& Rcw2 = Tcw2.block(0, 0, 3, 3);
+            const v3d& tcw1 = Tcw1.block(0, 3, 3, 1);
+            const v3d& tcw2 = Tcw2.block(0, 3, 3, 1);
+            m33 Rwc1 = Rcw1.transpose();
+            m33 Rwc2 = Rcw2.transpose();
+            v3d twc1 = -1 * Rwc1 * tcw1;
+            v3d twc2 = -1 * Rwc2 * tcw2;
+            v3d Pw1 = Rwc1 * Pc1 + twc1;
+            v3d Pw2 = Rwc2 * Pc2 + twc2;
+            err = Pw1 - Pw2;
+
+            //v3d tTmp1 = Pc1 - tcw1;
+            jacPc_Tcw1.block(0, 0, 3, 3) = -1 * Rwc1;
+            jacPc_Tcw1.block(0, 3, 3, 3) = Rwc1 * OPTIMIZE_BASE::skew_symmetric(Pc1);
+
+            //v3d tTmp2 = Pc2 - tcw2;
+            jac_Pc_Tcw2.block(0, 0, 3, 3) = Rwc2;
+            jac_Pc_Tcw2.block(0, 3, 3, 3) = -1 * Rwc2 * OPTIMIZE_BASE::skew_symmetric(Pc2);
+            if (std::isnan(err.norm()) || std::isnan(jacPc_Tcw1.norm()) || std::isnan(jac_Pc_Tcw2.norm()))
+            {
+                std::cout << err << std::endl;
+                std::cout << jacPc_Tcw1 << std::endl;
+                std::cout << jac_Pc_Tcw2 << std::endl;
+            }
+            return;
+        }
+        OPTIMIZE_LYJ_API void cal_jac_errPlanePc_Tcw(
+            const m34& Tcw, const v3d& Pc, const v4d& planew,
+            double& err, u6d& jacd_Tcw)
+        {
+            const m33& Rcw = Tcw.block(0, 0, 3, 3);
+            const v3d& tcw = Tcw.block(0, 3, 3, 1);
+            m33 Rwc = Rcw.transpose();
+            v3d twc = -1 * Rwc * tcw;
+            v3d Pw = Rwc * Pc + twc;
+
+            err = planew(0) * Pw(0) + planew(1) * Pw(1) + planew(2) * Pw(2) + planew(3);
+
+            const v3d& jacdedPw = planew.head(3);
+
+            m36 jacdPwdTcw;
+            //v3d tTmp = Pc - tcw;
+            jacdPwdTcw.block(0, 0, 3, 3) = -1 * Rwc;
+            jacdPwdTcw.block(0, 3, 3, 3) = Rwc * OPTIMIZE_BASE::skew_symmetric(Pc);
+
+            jacd_Tcw = jacdedPw.transpose() * jacdPwdTcw;
+
+            return;
+        }
+        OPTIMIZE_LYJ_API void cal_jac_errPlanePc_Tcw_Tcw(
+            const m34& Tcw1, const v3d& Pc1, const v3d& nc1, 
+            const m34& Tcw2, const v3d& Pc2, const v3d& nc2, 
+            v2d& err, m26& jacd_Tcw1, m26& jacd_Tcw2)
+        {
+            const m33& Rcw1 = Tcw1.block(0, 0, 3, 3);
+            const m33& Rcw2 = Tcw2.block(0, 0, 3, 3);
+            const v3d& tcw1 = Tcw1.block(0, 3, 3, 1);
+            const v3d& tcw2 = Tcw2.block(0, 3, 3, 1);
+            m33 Rwc1 = Rcw1.transpose();
+            m33 Rwc2 = Rcw2.transpose();
+            v3d twc1 = -1 * Rwc1 * tcw1;
+            v3d twc2 = -1 * Rwc2 * tcw2;
+            v3d Pw1 = Rwc1 * Pc1 + twc1;
+            v3d Pw2 = Rwc2 * Pc2 + twc2;
+            v3d nw1 = Rwc1 * nc1;
+            v3d nw2 = Rwc2 * nc2;
+
+            m33 R12 = Rcw1 * Rwc2;
+            m33 R21 = Rcw2 * Rwc1;
+            v3d t12 = tcw1 + Rcw1 * twc2;
+            v3d t21 = tcw2 + Rcw2 * twc1;
+            v3d P21 = R21 * Pc1 + t21;
+            v3d P12 = R12 * Pc2 + t12;
+
+            //err(0) = nw2.dot(Pw1 - Pw2);
+            //err(1) = nw1.dot(Pw2 - Pw1);
+            err(0) = nc2.dot(R21 * Pc1 + t21 - Pc2);
+            err(1) = nc1.dot(R12 * Pc2 + t12 - Pc1);
+
+            const v3d& jacdedPc1 = nc2;
+            //v3d tTmp1 = Pc1 - tcw1;
+            m36 jacdPc1dTcw1;
+            jacdPc1dTcw1.block(0, 0, 3, 3) = -1 * R21;
+            jacdPc1dTcw1.block(0, 3, 3, 3) = R21 * OPTIMIZE_BASE::skew_symmetric(Pc1);
+            jacd_Tcw1.block(0, 0, 1, 6) = jacdedPc1.transpose() * jacdPc1dTcw1;
+            m36 jacdPc1dTcw2;
+            jacdPc1dTcw2.block(0, 0, 3, 3).setIdentity();
+            jacdPc1dTcw2.block(0, 3, 3, 3) = -1 * OPTIMIZE_BASE::skew_symmetric(P21);
+            jacd_Tcw2.block(0, 0, 1, 6) = jacdedPc1.transpose() * jacdPc1dTcw2;
+
+            const v3d& jacdedPc2 = nc1;
+            m36 jacdPc2dTcw2;
+            jacdPc2dTcw2.block(0, 0, 3, 3) = -1 * R12;
+            jacdPc2dTcw2.block(0, 3, 3, 3) = R12 * OPTIMIZE_BASE::skew_symmetric(Pc2);
+            jacd_Tcw2.block(1, 0, 1, 6) = jacdedPc2.transpose() * jacdPc2dTcw2;
+            m36 jacdPc2dTcw1;
+            jacdPc2dTcw1.block(0, 0, 3, 3).setIdentity();
+            jacdPc2dTcw1.block(0, 3, 3, 3) = -1 * OPTIMIZE_BASE::skew_symmetric(P12);
+            jacd_Tcw1.block(1, 0, 1, 6) = jacdedPc2.transpose() * jacdPc2dTcw1;
+
+            return;
+        }
+        OPTIMIZE_LYJ_API void cal_jac_errLPc_Tcw(
+            const m34& Tcw, const v3d& Pc, 
+            const v3d& LPw, const v3d& dirw, 
+            v3d& err, m36& jacd_Tcw)
+        {
+            const m33& Rcw = Tcw.block(0, 0, 3, 3);
+            const v3d& tcw = Tcw.block(0, 3, 3, 1);
+            m33 Rwc = Rcw.transpose();
+            v3d twc = -1 * Rwc * tcw;
+            v3d Pw = Rwc * Pc + twc;
+
+            v3d dP = Pw - LPw;
+            m33 jacdedPw = m33::Identity() - dirw * dirw.transpose();
+            err = jacdedPw * dP;
+
+            m36 jacdPwdTcw;
+            //v3d tTmp = Pc - tcw;
+            jacdPwdTcw.block(0, 0, 3, 3) = -1 * Rwc;
+            jacdPwdTcw.block(0, 3, 3, 3) = Rwc * OPTIMIZE_BASE::skew_symmetric(Pc);
+
+            jacd_Tcw = jacdedPw.transpose() * jacdPwdTcw;
+            return;
+        }
+        OPTIMIZE_LYJ_API void cal_jac_errLPc_Tcw_Tcw(
+            const m34& Tcw1, const v3d& Pc1, const v3d& LPc1, const v3d& dirc1, 
+            const m34& Tcw2, const v3d& Pc2, const v3d& LPc2, const v3d& dirc2, 
+            v6d& err, m66& jacd_Tcw1, m66& jacd_Tcw2)
+        {
+            const m33& Rcw1 = Tcw1.block(0, 0, 3, 3);
+            const m33& Rcw2 = Tcw2.block(0, 0, 3, 3);
+            const v3d& tcw1 = Tcw1.block(0, 3, 3, 1);
+            const v3d& tcw2 = Tcw2.block(0, 3, 3, 1);
+            m33 Rwc1 = Rcw1.transpose();
+            m33 Rwc2 = Rcw2.transpose();
+            v3d twc1 = -1 * Rwc1 * tcw1;
+            v3d twc2 = -1 * Rwc2 * tcw2;
+            v3d Pw1 = Rwc1 * Pc1 + twc1;
+            v3d Pw2 = Rwc2 * Pc2 + twc2;
+
+            m33 R12 = Rcw1 * Rwc2;
+            m33 R21 = Rcw2 * Rwc1;
+            v3d t12 = tcw1 + Rcw1 * twc2;
+            v3d t21 = tcw2 + Rcw2 * twc1;
+            v3d P21 = R21 * Pc1 + t21;
+            v3d P12 = R12 * Pc2 + t12;
+
+            v3d dP2 = P21 - Pc2;
+            m33 jacdedPc2 = m33::Identity() - dirc2 * dirc2.transpose();
+            err.block(0, 0, 3, 1) = jacdedPc2 * dP2;
+            v3d dP1 = P12 - Pc1;
+            m33 jacdedPc1 = m33::Identity() - dirc1 * dirc1.transpose();
+            err.block(3, 0, 3, 1) = jacdedPc1 * dP1;
+
+            m36 jacdPc1dTcw1;
+            jacdPc1dTcw1.block(0, 0, 3, 3) = -1 * R21;
+            jacdPc1dTcw1.block(0, 3, 3, 3) = R21 * OPTIMIZE_BASE::skew_symmetric(Pc1);
+            jacd_Tcw1.block(0,0,3,3) = jacdedPc2.transpose() * jacdPc1dTcw1;
+            m36 jacdPc1dTcw2;
+            jacdPc1dTcw2.block(0, 0, 3, 3).setIdentity();
+            jacdPc1dTcw2.block(0, 3, 3, 3) = -1 * OPTIMIZE_BASE::skew_symmetric(P21);
+            jacd_Tcw2.block(0, 0, 3, 3) = jacdedPc2.transpose() * jacdPc1dTcw2;
+
+            m36 jacdPc2dTcw2;
+            jacdPc2dTcw2.block(0, 0, 3, 3) = -1 * R12;
+            jacdPc2dTcw2.block(0, 3, 3, 3) = R12 * OPTIMIZE_BASE::skew_symmetric(Pc2);
+            jacd_Tcw2.block(3, 0, 3, 3) = jacdedPc1.transpose() * jacdPc2dTcw2;
+            m36 jacdPc2dTcw1;
+            jacdPc2dTcw1.block(0, 0, 3, 3).setIdentity();
+            jacdPc2dTcw1.block(0, 3, 3, 3) = -1 * OPTIMIZE_BASE::skew_symmetric(P12);
+            jacd_Tcw1.block(3, 0, 3, 3) = jacdedPc1.transpose() * jacdPc2dTcw1;
+
+            return;
         }
     }
 }

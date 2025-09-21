@@ -129,6 +129,10 @@ namespace OPTIMIZE_LYJ
         using v3d = Eigen::Vector3d;
         using v4d = Eigen::Vector4d;
         using v6d = Eigen::Matrix<double, 6, 1>;
+        using u2d = Eigen::Matrix<double, 1, 2>;
+        using u3d = Eigen::Matrix<double, 1, 3>;
+        using u4d = Eigen::Matrix<double, 1, 4>;
+        using u6d = Eigen::Matrix<double, 1, 6>;
         // using m2d = Eigen::Matrix2d;
         using m22 = Eigen::Matrix2d;
         using m23 = Eigen::Matrix<double, 2, 3>;
@@ -141,7 +145,8 @@ namespace OPTIMIZE_LYJ
         OPTIMIZE_LYJ_API void cal_jac_errT_T(const m34 &priTwc, const m34 &Twc, v6d &err, m66 &jac);
         OPTIMIZE_LYJ_API void cal_jac_errUV_Twc_Pw(const m34 &Twc, const m33 &K, const v3d &Pw, const v2d &uv,
                                   v2d &err, m26 &jacUV_Twc, m23 &jac_UV_Pw);
-        OPTIMIZE_LYJ_API void cal_jac_errPlane_Pw(const v4d &planew, const v3d &Pw, double &err, v3d &jac);
+        OPTIMIZE_LYJ_API void cal_jac_errPlane_Pw(const v4d& planew, const v3d& Pw, double& err, v3d& jac);
+        OPTIMIZE_LYJ_API void cal_jac_errL_Pw(const v3d &LPw, const v3d& dirw, const v3d &Pw, v3d &err, m33 &jac);
     }
 
     namespace OPTIMIZE_BASE_TCW
@@ -154,6 +159,10 @@ namespace OPTIMIZE_LYJ
         using v3d = Eigen::Vector3d;
         using v4d = Eigen::Vector4d;
         using v6d = Eigen::Matrix<double, 6, 1>;
+        using u2d = Eigen::Matrix<double, 1, 2>;
+        using u3d = Eigen::Matrix<double, 1, 3>;
+        using u4d = Eigen::Matrix<double, 1, 4>;
+        using u6d = Eigen::Matrix<double, 1, 6>;
         // using m2d = Eigen::Matrix2d;
         using m22 = Eigen::Matrix2d;
         using m23 = Eigen::Matrix<double, 2, 3>;
@@ -166,6 +175,29 @@ namespace OPTIMIZE_LYJ
         OPTIMIZE_LYJ_API void cal_jac_errT_T(const m34& priTcw, const m34& Tcw, v6d& err, m66& jac);
         OPTIMIZE_LYJ_API void cal_jac_errUV_Tcw_Pw(const m34& Tcw, const m33& K, const v3d& Pw, const v2d& uv,
             v2d& err, m26& jacUV_Tcw, m23& jac_UV_Pw);
+        OPTIMIZE_LYJ_API void cal_jac_errPc_Tcw_Pw(const m34& Tcw, const v3d& Pw, const v3d& Pc,
+            v3d& err, m36& jacPc_Tcw, m33& jac_Pc_Pw);
+        OPTIMIZE_LYJ_API void cal_jac_errPc_Tcw_Tcw(
+            const m34& Tcw1, const v3d& Pc1,
+            const m34& Tcw2, const v3d& Pc2,
+            v3d& err, m36& jacPc_Tcw1, m36& jac_Pc_Tcw2);
+        OPTIMIZE_LYJ_API void cal_jac_errPlanePc_Tcw(
+            const m34& Tcw, const v3d& Pc,
+            const v4d& planew,
+            double& err, u6d& jacd_Tcw);
+        OPTIMIZE_LYJ_API void cal_jac_errPlanePc_Tcw_Tcw(
+            const m34& Tcw1, const v3d& Pc1, const v3d& nc1,
+            const m34& Tcw2, const v3d& Pc2, const v3d& nc2,
+            v2d& err, m26& jacd_Tcw1, m26& jacd_Tcw2);
+        OPTIMIZE_LYJ_API void cal_jac_errLPc_Tcw(
+            const m34& Tcw, const v3d& Pc,
+            const v3d& LPw, const v3d& dirw,
+            v3d& err, m36& jacd_Tcw);
+        OPTIMIZE_LYJ_API void cal_jac_errLPc_Tcw_Tcw(
+            const m34& Tcw1, const v3d& Pc1, const v3d& LPc1, const v3d& dirc1,
+            const m34& Tcw2, const v3d& Pc2, const v3d& LPc2, const v3d& dirc2,
+            v6d& err, m66& jacd_Tcw1, m66& jacd_Tcw2);
+
     }
 }
 
