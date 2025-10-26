@@ -168,5 +168,138 @@ namespace OPTIMIZE_LYJ
 
             return 0;
         }
+        
+        
+        
+        int ceresCheckTcwLineUV(std::vector<Eigen::Matrix<double, 3, 4>>& _Tcws, std::vector<Eigen::Matrix<double, 6, 1>>& _line3Ds, const std::vector<std::vector<Eigen::Vector4d>>& _obs)
+        {
+            // 构建优化问题
+            ceres::Problem problem;
+
+            // 初始化位姿 (四元数wxyz + 平移)
+            //double pose[7] = {
+            //    1.0, 0.0, 0.0, 0.0,  // 单位四元数
+            //    0.0, 0.0, 0.0        // 平移
+            //};
+            std::vector<double[7]> poses(_Tcws.size());
+            for (size_t i = 0; i < _Tcws.size(); i++)
+            {
+                Eigen::Quaterniond q(_Tcws[i].block<3, 3>(0, 0));
+                poses[i][0] = q.w();
+                poses[i][1] = q.x();
+                poses[i][2] = q.y();
+                poses[i][3] = q.z();
+                poses[i][4] = _Tcws[i](0, 3);
+                poses[i][5] = _Tcws[i](1, 3);
+                poses[i][6] = _Tcws[i](2, 3);
+                // 添加位姿参数块 (四元数+平移)
+                problem.AddParameterBlock(poses[i], 7);  // 7 = 4(quaternion) + 3(translation)
+                //if(i == 0)
+                    problem.SetParameterBlockConstant(poses[i]); // 固定参数
+                // 设置位姿流形 (四元数 + 平移)
+                problem.SetManifold(
+                    poses[i],
+                    new ceres::ProductManifold{
+                        new ceres::QuaternionManifold{},   // 处理四元数
+                        new ceres::EuclideanManifold<3>{}  // 处理平移
+                    }
+                );
+            }
+
+            // 初始化三维线 (起点 + 单位方向)
+            //double line[6] = {
+            //    0.0, 0.0, 1.0,  // 起点
+            //    1.0, 0.0, 0.0   // 方向（将被SphereManifold自动单位化）
+            //};
+            std::vector<double[6]> lines(_line3Ds.size());
+            for (size_t i = 0; i < _line3Ds.size(); i++)
+            {
+                Eigen::Vector3d v = _line3Ds[i].tail<3>() - _line3Ds[i].head<3>();
+                v.normalize();
+                lines[i][0] = _line3Ds[i](0);
+                lines[i][1] = _line3Ds[i](1);
+                lines[i][2] = _line3Ds[i](2);
+                lines[i][3] = v(0);
+                lines[i][4] = v(1);
+                lines[i][5] = v(2);
+                // 添加三维线参数块 (起点+方向)
+                problem.AddParameterBlock(lines[i], 6);  // 6 = 3(origin) + 3(direction)            
+                // 设置三维线流形 (起点 + 方向)
+                problem.SetManifold(
+                    lines[i],
+                    new ceres::ProductManifold{
+                        new ceres::EuclideanManifold<3>{},  // 起点自由优化
+                        new ceres::SphereManifold<3>{}      // 方向保持单位化
+                    }
+                );
+            }
+
+            // 生成模拟观测数据
+            //std::vector<LineObservation> observations = {
+            //    {0.1, 0.2, 0.9, 0.8},
+            //    {0.3, 0.4, 0.7, 0.6},
+            //    // 可添加更多观测数据...
+            //};
+            std::vector<std::vector<LineObservation>> obs(_obs.size());
+            for (size_t i = 0; i < _obs.size(); i++)
+            {
+                obs[i].resize(_obs[i].size());
+                for (size_t j = 0; j < _obs[i].size(); j++)
+                {
+                    obs[i][j].x1 = _obs[i][j](0);
+                    obs[i][j].y1 = _obs[i][j](1);
+                    obs[i][j].x2 = _obs[i][j](2);
+                    obs[i][j].y2 = _obs[i][j](3);
+
+                    // 添加残差项
+                    ceres::CostFunction* cost_function =
+                        new ceres::AutoDiffCostFunction<LineReprojectionError, 2, 7, 6>(
+                            new LineReprojectionError(obs[i][j].x1, obs[i][j].y1, obs[i][j].x2, obs[i][j].y2));
+
+                    problem.AddResidualBlock(
+                        cost_function,
+                        new ceres::HuberLoss(0.8),  // 鲁棒核函数
+                        poses[i],
+                        lines[j]
+                    );
+                }
+            }
+
+            // 配置求解器
+            ceres::Solver::Options options;
+            options.linear_solver_type = ceres::SPARSE_SCHUR;
+            options.minimizer_progress_to_stdout = true;
+            options.max_num_iterations = 50;
+            options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
+
+            // 执行优化
+            ceres::Solver::Summary summary;
+            ceres::Solve(options, &problem, &summary);
+
+            // 输出结果
+            std::cout << summary.BriefReport() << "\n\n";
+
+            // 优化后的位姿
+            for (size_t i = 0; i < poses.size(); i++)
+            {
+                Eigen::Map<Eigen::Quaterniond> q_optimized(poses[i]);
+                Eigen::Map<Eigen::Vector3d> t_optimized(poses[i] + 4);
+                std::cout << "Optimized Pose:\n"
+                    << "Quaternion (w,x,y,z): " << q_optimized.coeffs().transpose() << "\n"
+                    << "Translation: " << t_optimized.transpose() << "\n\n";
+            }
+
+            // 优化后的三维线
+            for (size_t i = 0; i < lines.size(); i++)
+            {
+                Eigen::Map<Eigen::Vector3d> line_origin(lines[i]);
+                Eigen::Map<Eigen::Vector3d> line_dir(lines[i] + 3);
+                std::cout << "Optimized 3D Line:\n"
+                    << "Origin: " << line_origin.transpose() << "\n"
+                    << "Direction: " << line_dir.normalized().transpose() << std::endl;
+            }
+
+            return 0;
+        }
 	}
 }

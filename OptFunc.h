@@ -9,6 +9,7 @@ namespace OPTIMIZE_LYJ
 {
     namespace OPTIMIZE_BASE
     {
+        OPTIMIZE_LYJ_API Eigen::Matrix3d orthogonalizeRotationSVD(const Eigen::Matrix3d& R);
         OPTIMIZE_LYJ_API Eigen::Matrix<double, 3, 4> relPose(const Eigen::Matrix<double, 3, 4> &_Tw1, const Eigen::Matrix<double, 3, 4> &_Tw2);
         OPTIMIZE_LYJ_API Eigen::Matrix<double, 3, 4> relPose(const double *const _Tw1, const double *const _Tw2);
         OPTIMIZE_LYJ_API Eigen::Matrix<double, 3, 4> invPose(const Eigen::Matrix<double, 3, 4> &_T);
@@ -36,11 +37,13 @@ namespace OPTIMIZE_LYJ
         OPTIMIZE_LYJ_API Eigen::Matrix3d ExpSO3(const double x, const double y, const double z);
         OPTIMIZE_LYJ_API Eigen::Vector3d Lnso3(const Eigen::Matrix3d &R);
         OPTIMIZE_LYJ_API v6d orth_to_plk(const v4d &orth);
+        OPTIMIZE_LYJ_API v6d line_to_plk(const v3d& p, const v3d& v);
         OPTIMIZE_LYJ_API v6d plk_to_pose(const v6d &plk_w, const m33 &Rcw, const v3d &tcw);
         OPTIMIZE_LYJ_API v6d orth_to_line(const v4d &orth);
-        OPTIMIZE_LYJ_API v4d line_to_orth(const v3d &p, const v3d &v);
         // 普吕克与正交转换
-        OPTIMIZE_LYJ_API v4d plk_to_orth(const v3d &n, const v3d &v);
+        OPTIMIZE_LYJ_API v4d plk_to_orth(const v3d& n, const v3d& v);
+        OPTIMIZE_LYJ_API v4d line_to_orth(const v3d &p, const v3d &v);
+        OPTIMIZE_LYJ_API v4d pp_to_orth(const v3d& sp, const v3d& ep);
 
         OPTIMIZE_LYJ_API void cal_jac_errUV_Tcw_Pw(const Eigen::Matrix<double, 3, 4> &Tcw, const Eigen::Matrix3d &K,
                                   const Eigen::Vector3d &Pw, const Eigen::Vector2d &uv,
@@ -53,6 +56,8 @@ namespace OPTIMIZE_LYJ
         OPTIMIZE_LYJ_API void update_Tcw(m34 &Tcw, const v6d &detX, const double rate);
         //---- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- - ;
         OPTIMIZE_LYJ_API void update_lineOrth(v4d &orthW, const v4d &detX, const double rate);
+
+        OPTIMIZE_LYJ_API void convertK2KK(const Eigen::Matrix3d& _K, Eigen::Matrix3d& _KK);
 
         // 3D点投影到像素坐标（带深度校验）
         OPTIMIZE_LYJ_API Eigen::Vector2d project(const Eigen::Vector3d &P_c,
@@ -197,6 +202,8 @@ namespace OPTIMIZE_LYJ
             const m34& Tcw1, const v3d& Pc1, const v3d& LPc1, const v3d& dirc1,
             const m34& Tcw2, const v3d& Pc2, const v3d& LPc2, const v3d& dirc2,
             v6d& err, m66& jacd_Tcw1, m66& jacd_Tcw2);
+
+        OPTIMIZE_LYJ_API void cal_jac_errL2D_Tcw_L3D(const m34& Tcw, const v4d& lineOrth, v2d& err, m26& jacT, m24& jacL, const m33& KK, const v4d& obs);
 
     }
 }

@@ -5,13 +5,27 @@ namespace OPTIMIZE_LYJ
 {
     namespace OPTIMIZE_BASE
     {
+        OPTIMIZE_LYJ_API Eigen::Matrix3d orthogonalizeRotationSVD(const Eigen::Matrix3d& R)
+        {
+            Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);
+            Eigen::Matrix3d U = svd.matrixU();
+            Eigen::Matrix3d V = svd.matrixV();
+            Eigen::Matrix3d R_reg = U * V.transpose();
 
+            // 确保行列式为1
+            if (R_reg.determinant() < 0) {
+                R_reg.col(2) *= -1.0; // 反转第三列
+            }
+            return R_reg;
+        }
         Eigen::Matrix<double, 3, 4> relPose(const Eigen::Matrix<double, 3, 4> &_Tw1, const Eigen::Matrix<double, 3, 4> &_Tw2)
         {
             Eigen::Matrix<double, 3, 4> T12;
             T12.setZero();
-            T12.block(0, 0, 3, 3) = _Tw1.block(0, 0, 3, 3).transpose() * _Tw2.block(0, 0, 3, 3);
-            T12.block(0, 3, 3, 1) = _Tw1.block(0, 0, 3, 3).transpose() * (_Tw2.block(0, 3, 3, 1) - _Tw1.block(0, 3, 3, 1));
+            const Eigen::Matrix3d& Rw1 = _Tw1.block(0, 0, 3, 3);
+            Eigen::Matrix3d R1w = orthogonalizeRotationSVD(Rw1.transpose());
+            T12.block(0, 0, 3, 3) = R1w * _Tw2.block(0, 0, 3, 3);
+            T12.block(0, 3, 3, 1) = R1w * (_Tw2.block(0, 3, 3, 1) - _Tw1.block(0, 3, 3, 1));
             return T12;
         }
 
@@ -21,15 +35,18 @@ namespace OPTIMIZE_LYJ
             Eigen::Map<const Eigen::Matrix<double, 3, 4>> Tw2(_Tw2);
             Eigen::Matrix<double, 3, 4> T12;
             T12.setZero();
-            T12.block(0, 0, 3, 3) = Tw1.block(0, 0, 3, 3).transpose() * Tw2.block(0, 0, 3, 3);
-            T12.block(0, 3, 3, 1) = Tw1.block(0, 0, 3, 3).transpose() * (Tw2.block(0, 3, 3, 1) - Tw1.block(0, 3, 3, 1));
+            const Eigen::Matrix3d& Rw1 = Tw1.block(0, 0, 3, 3);
+            Eigen::Matrix3d R1w = orthogonalizeRotationSVD(Rw1.transpose());
+            T12.block(0, 0, 3, 3) = R1w * Tw2.block(0, 0, 3, 3);
+            T12.block(0, 3, 3, 1) = R1w * (Tw2.block(0, 3, 3, 1) - Tw1.block(0, 3, 3, 1));
             return T12;
         }
 
         Eigen::Matrix<double, 3, 4> invPose(const Eigen::Matrix<double, 3, 4> &_T)
         {
             Eigen::Matrix<double, 3, 4> invT;
-            invT.block(0, 0, 3, 3) = _T.block(0, 0, 3, 3).transpose();
+            const Eigen::Matrix3d& R = _T.block(0, 0, 3, 3);
+            invT.block(0, 0, 3, 3) = orthogonalizeRotationSVD(R.transpose());
             invT.block(0, 3, 3, 1) = -1 * invT.block(0, 0, 3, 3) * _T.block(0, 3, 3, 1);
             return invT;
         }
@@ -93,13 +110,21 @@ namespace OPTIMIZE_LYJ
             R << c2 * c3, s1 * s2 * c3 - c1 * s3, c1 * s2 * c3 + s1 * s3,
                 c2 * s3, s1 * s2 * s3 + c1 * c3, c1 * s2 * s3 - s1 * c3,
                 -s2, s1 * c2, c1 * c2;
-            // double w1 = cos(phi);
-            // double w2 = sin(phi);
-            // plk.head(3) = R.col(0) * w1;
-            // plk.tail(3) = R.col(1) * w2;
-            double d = phi;
-            plk.head(3) = -R.col(0) * d;
-            plk.tail(3) = R.col(1);
+            double w1 = cos(phi);
+            double w2 = sin(phi);
+            plk.head(3) = R.col(0) * w1;
+            plk.tail(3) = R.col(1) * w2;
+            //double d = phi;
+            //plk.head(3) = R.col(0) * d;
+            //plk.tail(3) = R.col(1);
+            return plk;
+        }
+        v6d line_to_plk(const v3d& p, const v3d& v)
+        {
+            v3d vn = v.normalized();
+            v3d n = p.cross(vn);
+            v6d plk;
+            plk << n, vn;
             return plk;
         }
         v6d plk_to_pose(const v6d &plk_w, const m33 &Rcw, const v3d &tcw)
@@ -131,36 +156,18 @@ namespace OPTIMIZE_LYJ
                 c2 * s3, s1 * s2 * s3 + c1 * c3, c1 * s2 * s3 - s1 * c3,
                 -s2, s1 * c2, c1 * c2;
 
-            // double w1 = std::cos(phi);
-            // double w2 = std::sin(phi);
-            // double d = w1 / w2; // 原点到直线的距离
-            double d = phi;
+            double w1 = std::cos(phi);
+            double w2 = std::sin(phi);
+            double d = w1 / w2; // 原点到直线的距离
+            //double d = phi;
 
             line.head(3) = -R.col(2) * d;
             line.tail(3) = R.col(1);
 
             return line;
         }
-        v4d line_to_orth(const v3d &p, const v3d &v)
-        {
-            v4d orth;
-            v3d n = p.cross(v);
-            v3d u1 = n / n.norm();
-            v3d u2 = v / v.norm();
-            v3d u3 = u1.cross(u2);
-            orth[0] = std::atan2(u2(2), u3(2));
-            orth[1] = std::asin(-u1(2));
-            orth[2] = std::atan2(u1(1), u1(0));
-
-            // v2d w(n.norm(), v.norm());
-            // w = w / w.norm();
-            // orth[3] = std::asin(w(1));
-            orth[3] = p.cross(u2).norm();
-
-            return orth;
-        }
         // 普吕克与正交转换
-        v4d plk_to_orth(const v3d &n, const v3d &v)
+        v4d plk_to_orth(const v3d& n, const v3d& v)
         {
             v4d orth;
             v3d u1 = n / n.norm();
@@ -171,12 +178,23 @@ namespace OPTIMIZE_LYJ
             orth[1] = std::asin(-u1(2));
             orth[2] = std::atan2(u1(1), u1(0));
 
-            // TemVec2 w(n.norm(), v.norm());
-            // w = w / w.norm();
-            // orth[3] = std::asin(w(1));
-            orth[3] = n.cross(v).norm();
+            v2d w(n.norm(), v.norm());
+            w = w / w.norm();
+            orth[3] = std::asin(w(1));
+            //orth[3] = n.cross(v).norm();
 
             return orth;
+        }
+        v4d line_to_orth(const v3d &p, const v3d &v)
+        {
+            v3d vNm = v.normalized();
+            v3d n = p.cross(vNm);
+            return plk_to_orth(n, vNm);
+        }
+        v4d pp_to_orth(const v3d& sp, const v3d& ep)
+        {
+            v3d v = (ep - sp);
+            return line_to_orth(sp, v);
         }
 
         void cal_jac_errUV_Tcw_Pw(const Eigen::Matrix<double, 3, 4> &Tcw, const Eigen::Matrix3d &K,
@@ -307,7 +325,6 @@ namespace OPTIMIZE_LYJ
         //---- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- - ;
         void update_lineOrth(v4d &orthW, const v4d &detX, const double rate)
         {
-            v4d otrhW;
             v3d theta = orthW.block(0, 0, 3, 1);
             double phi = orthW[3];
             double s1 = sin(theta[0]);
@@ -360,6 +377,16 @@ namespace OPTIMIZE_LYJ
             v3d V = line.tail(3);
             v3d P2 = P1 + V * 3;
             P1 = P2 - V * 6;
+        }
+
+        OPTIMIZE_LYJ_API void convertK2KK(const Eigen::Matrix3d& _K, Eigen::Matrix3d& _KK)
+        {
+            const double& fx = _K(0, 0);
+            const double& fy = _K(1, 1);
+            _KK.setZero();
+            Eigen::Matrix3d KK = _K.inverse();
+            _KK = KK.transpose();
+            _KK *= (fx * fy);
         }
 
         // 3D点投影到像素坐标（带深度校验）
@@ -1081,6 +1108,65 @@ namespace OPTIMIZE_LYJ
             jacd_Tcw1.block(3, 0, 3, 3) = jacdedPc1.transpose() * jacdPc2dTcw1;
 
             return;
+        }
+    
+        void cal_jac_errL2D_Tcw_L3D(const m34& Tcw, const v4d& lineOrth, v2d& err, m26& jacT, m24& jacL, const m33& KK, const v4d& obs)
+        {
+            v6d lineW = OPTIMIZE_BASE::orth_to_plk(lineOrth);
+            m33 Rcw = Tcw.block(0, 0, 3, 3);
+            v3d tcw = Tcw.block(0, 3, 3, 1);
+            v6d lineC = OPTIMIZE_BASE::plk_to_pose(lineW, Rcw, tcw);
+            v3d nc = lineC.head(3);
+            v3d l2d = KK * nc;
+            double l_norm = l2d(0) * l2d(0) + l2d(1) * l2d(1);
+            double l_sqrtnorm = sqrt(l_norm);
+            double l_trinorm = l_norm * l_sqrtnorm;
+            double e1 = obs(0) * l2d(0) + obs(1) * l2d(1) + l2d(2);
+            double e2 = obs(2) * l2d(0) + obs(3) * l2d(1) + l2d(2);
+            err(0) = e1 / l_sqrtnorm;
+            err(1) = e2 / l_sqrtnorm;
+
+            m23 jaco_e_l_Tmp;
+            jaco_e_l_Tmp << (obs(0) / l_sqrtnorm - l2d(0) * e1 / l_trinorm), (obs(1) / l_sqrtnorm - l2d(1) * e1 / l_trinorm), 1.0 / l_sqrtnorm,
+                (obs(2) / l_sqrtnorm - l2d(0) * e2 / l_trinorm), (obs(3) / l_sqrtnorm - l2d(1) * e2 / l_trinorm), 1.0 / l_sqrtnorm;
+            m23 jaco_e_l = jaco_e_l_Tmp;
+            m36 jaco_l_Lc;
+            jaco_l_Lc.setZero();
+            jaco_l_Lc.block(0, 0, 3, 3) = KK;
+            m26 jaco_e_Lc;
+            jaco_e_Lc = jaco_e_l * jaco_l_Lc;
+
+            v3d ncc = Rcw * lineW.head(3);
+            v3d dcc = Rcw * lineW.tail(3);
+            m33 nccc = OPTIMIZE_BASE::skew_symmetric(ncc);
+            m33 dccc = OPTIMIZE_BASE::skew_symmetric(dcc);
+            m66 jaco_Lc_pose;
+            jaco_Lc_pose.setZero();
+            jaco_Lc_pose.block(0, 0, 3, 3) = -1 * dccc;
+            jaco_Lc_pose.block(0, 3, 3, 3) = -1 * nccc - OPTIMIZE_BASE::skew_symmetric(tcw) * dccc;
+            jaco_Lc_pose.block(3, 3, 3, 3) = -1 * dccc;
+            jacT = jaco_e_Lc * jaco_Lc_pose;
+
+            m66 invTwc;
+            invTwc << Rcw, OPTIMIZE_BASE::skew_symmetric(tcw)* Rcw,
+                m33::Zero(), Rcw;
+            v3d nw = lineW.head(3);
+            v3d vw = lineW.tail(3);
+            v3d u1 = nw / nw.norm();
+            v3d u2 = vw / vw.norm();
+            v3d u3 = u1.cross(u2);
+            //v2d w(nw.cross(vw).norm(), 1);
+             v2d wT(nw.norm(), vw.norm());
+             v2d w = wT / wT.norm();
+            m64 jaco_Lw_orth;
+            jaco_Lw_orth.setZero();
+            jaco_Lw_orth.block(3, 0, 3, 1) = w(1) * u3;
+            jaco_Lw_orth.block(0, 1, 3, 1) = -w(0) * u3;
+            jaco_Lw_orth.block(0, 2, 3, 1) = w(0) * u2;
+            jaco_Lw_orth.block(3, 2, 3, 1) = -w(1) * u1;
+            jaco_Lw_orth.block(0, 3, 3, 1) = -w(1) * u1;
+            jaco_Lw_orth.block(3, 3, 3, 1) = w(0) * u2;
+            jacL = jaco_e_Lc * invTwc * jaco_Lw_orth;
         }
     }
 }

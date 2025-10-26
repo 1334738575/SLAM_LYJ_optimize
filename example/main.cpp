@@ -28,7 +28,9 @@ int main(int argc, char *argv[])
      //OPTIMIZE_LYJ::test_optimize_RelPose3d_Pose3d_Pose3d();
     //OPTIMIZE_LYJ::test_optimize_Plane_P();
     //OPTIMIZE_LYJ::test_optimize_UV_Pose3d_P3d2();
-    OPTIMIZE_LYJ::ceres_Check_UV_Pose3d_P3d2();
+    //OPTIMIZE_LYJ::ceres_Check_UV_Pose3d_P3d2();
+    OPTIMIZE_LYJ::test_optimize_UV2_Pose3d_Line3d();
+    //OPTIMIZE_LYJ::ceres_Check_UV_Pose3d_Line3d();
      //main3();
     return 0;
 }

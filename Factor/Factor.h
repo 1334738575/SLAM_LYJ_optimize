@@ -11,7 +11,7 @@ namespace OPTIMIZE_LYJ
     class OptFactorP3d_P3d : public OptFactor<double, 3, 3>
     {
     public:
-        OptFactorP3d_P3d(const uint64_t _id) : OptFactor(_id, FACTOR_UNDEFINE_0) {}
+        OptFactorP3d_P3d(const uint64_t _id) : OptFactor(_id, FACTOR_POINT3D_POINT3D) {}
         ~OptFactorP3d_P3d()
         {
             if (m_obs)
@@ -370,6 +370,88 @@ namespace OPTIMIZE_LYJ
         double *m_obs = nullptr;
         double *m_K = nullptr;
     };
+
+    class OptFactorLine2d_Pose3d_Line3d : public OptFactor<double, 2, 6, 4>
+    {
+    public:
+        OptFactorLine2d_Pose3d_Line3d(const uint64_t _id) : OptFactor(_id, FACTOR_UV2_T3DLINE3D) {}
+        ~OptFactorLine2d_Pose3d_Line3d()
+        {
+            //if (m_obs)
+            //    delete m_obs;
+            //if (m_KK)
+            //    delete m_KK;
+        }
+
+        //void setObs(double* _obs, double* _KK)
+        //{
+        //    if (m_obs == nullptr)
+        //        m_obs = new double[4];
+        //    memcpy(m_obs, _obs, sizeof(double) * 4);
+        //    if (m_KK == nullptr)
+        //        m_KK = new double[4];
+        //    memcpy(m_KK, _KK, sizeof(double) * 4);
+        //}
+        //void setObs(const Eigen::Vector4d& _obs, const Eigen::Matrix3d& _K)
+        //{
+        //    m_obs = _obs;
+        //    OPTIMIZE_BASE::convertK2KK(_K, m_KK);
+        //}
+        void setObs(const Eigen::Vector4d& _obs, const Eigen::Matrix3d& _KK)
+        {
+            m_obs = _obs;
+            m_KK = _KK;
+        }
+
+    public:
+        // Í¨¹ý OptFactor ¼Ì³Ð
+        bool calculateErrAndJac(double* _err, double** _jacs, double _w, OptVarAbr<double>** _values) const override
+        {
+            if (!checkVDims(_values))
+                return false;
+            if (_err == nullptr)
+                return false;
+            auto T = _values[0]->getData();
+            auto Orth = _values[1]->getData();
+
+            Eigen::Vector2d err;
+            Eigen::Matrix<double, 3, 4> Twc;
+            Twc.block(0, 0, 3, 3) = Eigen::Map<const Eigen::Matrix3d>(T, 3, 3);
+            Twc.block(0, 3, 3, 1) = Eigen::Map<const Eigen::Vector3d>(T + 9, 3);
+            Eigen::Vector4d Orthw = Eigen::Map<const Eigen::Vector4d>(Orth, 4);
+
+            Eigen::Matrix<double, 2, 6> jac_uvs_Twc;
+            Eigen::Matrix<double, 2, 4> jac_uvs_Orthw;
+
+            //OPTIMIZE_BASE::cal_jac_errL2D_Tcw_L3D(Twc, Orthw, err, jac_uvs_Twc, jac_uvs_Orthw, m_KK, m_obs);
+            OPTIMIZE_BASE_TCW::cal_jac_errL2D_Tcw_L3D(Twc, Orthw, err, jac_uvs_Twc, jac_uvs_Orthw, m_KK, m_obs);
+             //std::cout << "KK: " << std::endl
+             //          << m_KK << std::endl;
+             //std::cout << "jac_uvs_Twc: " << std::endl
+             //          << jac_uvs_Twc << std::endl;
+             //std::cout << "jac_uvs_Orthw: " << std::endl
+             //          << jac_uvs_Orthw << std::endl;
+             //std::cout << "err: " << std::endl
+             //          << err << std::endl;
+             //std::cout << "obs: " << std::endl
+             //          << m_obs << std::endl;
+
+            memcpy(_err, &err, sizeof(double) * 2);
+            if (_jacs[0])
+                memcpy(_jacs[0], jac_uvs_Twc.data(), sizeof(double) * 12);
+            if (_jacs[1])
+                memcpy(_jacs[1], jac_uvs_Orthw.data(), sizeof(double) * 8);
+            return true;
+        }
+
+    private:
+        //double* m_obs = nullptr;
+        //double* m_KK = nullptr;
+        Eigen::Vector4d m_obs;
+        Eigen::Matrix3d m_KK;
+    };
+
+
 }
 
 #endif // OPTIMIZE_FACTOR_H

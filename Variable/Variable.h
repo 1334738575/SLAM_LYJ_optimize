@@ -184,6 +184,85 @@ namespace OPTIMIZE_LYJ
     private:
     };
 
+    class OptVarLine3d : public OptVar<double, 4, 4>
+    {
+    public:
+        OptVarLine3d(const uint64_t _id) : OptVar(_id, VAR_LINE3D) {};
+        ~OptVarLine3d() {};
+
+    public:
+        // Í¨¹ý OptVar ¼Ì³Ð
+        bool update(double* _detX) override
+        {
+            Eigen::Map<Eigen::Vector4d> orthW(m_data);
+            Eigen::Vector3d theta = orthW.block(0, 0, 3, 1);
+            double phi = orthW[3];
+            double s1 = sin(theta[0]);
+            double c1 = cos(theta[0]);
+            double s2 = sin(theta[1]);
+            double c2 = cos(theta[1]);
+            double s3 = sin(theta[2]);
+            double c3 = cos(theta[2]);
+            Eigen::Matrix3d R;
+            R << c2 * c3, s1* s2* c3 - c1 * s3, c1* s2* c3 + s1 * s3,
+                c2* s3, s1* s2* s3 + c1 * c3, c1* s2* s3 - s1 * c3,
+                -s2, s1* c2, c1* c2;
+            //double w1 = phi;
+            //double w2 = 1;
+            Eigen::Map<const Eigen::Vector3d> detTheta(_detX);
+            const double& detPhi = _detX[3];
+            Eigen::Matrix3d Rz;
+            Rz << cos(detTheta(2)), -sin(detTheta(2)), 0,
+                sin(detTheta(2)), cos(detTheta(2)), 0,
+                0, 0, 1;
+            Eigen::Matrix3d Ry;
+            Ry << cos(detTheta(1)), 0, sin(detTheta(1)),
+                0, 1, 0,
+                -sin(detTheta(1)), 0, cos(detTheta(1));
+            Eigen::Matrix3d Rx;
+            Rx << 1, 0, 0,
+                0, cos(detTheta(0)), -sin(detTheta(0)),
+                0, sin(detTheta(0)), cos(detTheta(0));
+            Eigen::Matrix3d Rf = R * Rx * Ry * Rz;
+            //Eigen::Matrix2d W;
+            //W << w1, -w2, w2, w1;
+            //Eigen::Matrix2d Wf;
+            //Wf << w1 + detPhi, -1, 1, w1 + detPhi;
+            //Eigen::Vector4d thetaPlus;
+            Eigen::Vector3d u1 = Rf.col(0);
+            Eigen::Vector3d u2 = Rf.col(1);
+            Eigen::Vector3d u3 = Rf.col(2);
+            //thetaPlus[0] = atan2(u2(2), u3(2));
+            //thetaPlus[1] = asin(-u1(2));
+            //thetaPlus[2] = atan2(u1(1), u1(0));
+            //thetaPlus[3] = Wf(0, 0);
+            //Eigen::Matrix<double, 6 ,1> line = OPTIMIZE_BASE::orth_to_line(thetaPlus);
+            //Eigen::Vector3d P1 = line.head(3);
+            //Eigen::Vector3d V = line.tail(3);
+            //Eigen::Vector3d P2 = P1 + V * 3;
+            //P1 = P2 - V * 6;
+
+            m_data[0] = atan2(u2(2), u3(2));
+            m_data[1] = asin(-u1(2));
+            m_data[2] = atan2(u1(1), u1(0));
+            m_data[3] = phi + detPhi;
+
+            return true;
+        }
+
+        Eigen::Vector4d getEigen() const
+        {
+            return Eigen::Map<const Eigen::Vector4d>(m_data, 4);
+        }
+        friend std::ostream& operator<<(std::ostream& os, const OptVarLine3d& cls)
+        {
+            std::cout << "(" << cls.m_data[0] << ", " << cls.m_data[1] << ", " << cls.m_data[2] << ", " << cls.m_data[3] << ")";
+            return os;
+        }
+
+    private:
+    };
+
 }
 
 #endif // OPTIMIZE_VARIABLE_H

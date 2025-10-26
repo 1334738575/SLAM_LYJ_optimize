@@ -580,4 +580,312 @@ namespace OPTIMIZE_LYJ
 		OPTIMIZE_LYJ::OPTIMIZE_CERES::ceresCheckTcwUV();
 		return;
 	}
+	
+
+#define PI 3.14159265358979323846
+	using namespace Eigen;
+	// 定义三维点和二维点结构体
+	struct Point3D { Vector3d coord; };
+	struct Point2D { Vector2d coord; };
+	struct Line3D { int from, to; };  // 边的起点和终点索引
+	struct Line2D { Point2D p1, p2; };
+	// 相机内参结构体（简化版）
+	struct CameraIntrinsics {
+		double fx = 500.0, fy = 500.0; // 焦距
+		double cx = 320.0, cy = 240.0; // 主点
+		int width = 640, height = 480; // 图像尺寸
+	};
+	// 生成立方体顶点和边
+	void generate_cuboid(double _b, double _l, double _w, double _h, std::vector<Point3D>& vertices, std::vector<Line3D>& edges) {
+		vertices.resize(8);
+		double l = _l / 2.0;
+		double w = _w / 2.0;
+		double h = _h / 2.0;
+		double bias = 20;
+		// 立方体顶点（中心在原点）
+		vertices[0].coord << -l + _b, -w + _b, -h + _b;
+		vertices[1].coord << l + _b, -w + _b, -h + _b;
+		vertices[2].coord << l + _b, w + _b, -h + _b;
+		vertices[3].coord << -l + _b, w + _b, -h + _b;
+		vertices[4].coord << -l + _b, -w + _b, h + _b;
+		vertices[5].coord << l + _b, -w + _b, h + _b;
+		vertices[6].coord << l + _b, w + _b, h + _b;
+		vertices[7].coord << -l + _b, w + _b, h + _b;
+
+		// 定义12条边
+		edges = { {0,1}, {1,2}, {2,3}, {3,0},
+				 {4,5}, {5,6}, {6,7}, {7,4},
+				 {0,4}, {1,5}, {2,6}, {3,7} };
+	}
+	// 将世界坐标点变换到相机坐标系
+	Vector3d transform_to_camera(const Vector3d& point,
+		const Matrix3d& R, const Vector3d& t) {
+		return R.transpose() * (point - t);
+	}
+	// 投影三维点到图像平面
+	bool project_point(const Vector3d& p_cam, Point2D& p_pixel,
+		const CameraIntrinsics& cam) {
+		if (p_cam.z() <= 0) return false; // 深度为负，不可见
+
+		// 透视投影
+		double u = (cam.fx * p_cam.x() / p_cam.z()) + cam.cx;
+		double v = (cam.fy * p_cam.y() / p_cam.z()) + cam.cy;
+
+		// 检查是否在图像范围内
+		if (u < 0 || u >= cam.width || v < 0 || v >= cam.height)
+			return false;
+
+		p_pixel.coord << u, v;
+		//p_pixel.coord << p_cam.x() / p_cam.z(), p_cam.y() / p_cam.z();
+		return true;
+	}
+	// 主函数：生成三个位姿下的二维线观测
+	int genLineData(std::vector<Eigen::Matrix<double, 3, 4>>& _Twcs, std::vector<Eigen::Matrix<double, 6, 1>>& _lines, std::vector<std::vector<Eigen::Vector4d>>& _allObs, double _bT, double _bl,
+		double _fx=500, double _fy = 500, double _cx = 320, double _cy = 240, int _w = 640, int _h = 480) {
+		// 创建边长为2的立方体
+		std::vector<Point3D> vertices;
+		std::vector<Line3D> edges_3d;
+		generate_cuboid(_bl, 1.0, 2.0, 3.0, vertices, edges_3d);
+
+		_lines.resize(edges_3d.size());
+		for (int i = 0; i < edges_3d.size(); ++i)
+		{
+			const Line3D& edge = edges_3d[i];
+			const Vector3d& p1 = vertices[edge.from].coord;
+			const Vector3d& p2 = vertices[edge.to].coord;
+			_lines[i].head<3>() = p1;
+			_lines[i].tail<3>() = p2;
+		}
+
+		// 定义三个相机位姿 [R|t] Twc
+		std::vector<std::pair<Matrix3d, Vector3d>> poses = {
+			{   // 正面视角
+				AngleAxisd(0 + _bT, Vector3d::UnitY()).toRotationMatrix(),
+				Vector3d(0, 0, -15)
+			},
+			{   // 右侧视角
+				AngleAxisd(PI / 8 + _bT, Vector3d::UnitY()).toRotationMatrix(),
+				Vector3d(-3, 0, -15)
+			},
+			{   // 俯视视角
+				AngleAxisd(-PI / 8 - _bT, Vector3d::UnitX()).toRotationMatrix(),
+				Vector3d(0, -2, -15)
+			}
+		};
+		_Twcs.resize(poses.size());
+		for (int i = 0; i < poses.size(); ++i)
+		{
+			_Twcs[i].block(0, 0, 3, 3) = poses[i].first;
+			_Twcs[i].block(0, 3, 3, 1) = poses[i].second;
+		}
+
+		CameraIntrinsics cam{_fx, _fy, _cx, _cy, _w, _h}; // 使用默认内参
+
+		_allObs.resize(poses.size());
+		for (size_t pose_idx = 0; pose_idx < poses.size(); ++pose_idx) {
+			auto& [R, t] = poses[pose_idx];
+			std::vector<Line2D> visible_lines;
+
+			// 处理每条3D边
+			_allObs[pose_idx].resize(edges_3d.size());
+			int cnt = 0;
+			for (const Line3D& edge : edges_3d) {
+				// 变换起点和终点到相机坐标系
+				Vector3d p1_cam = transform_to_camera(
+					vertices[edge.from].coord, R, t);
+				Vector3d p2_cam = transform_to_camera(
+					vertices[edge.to].coord, R, t);
+
+				// 投影到图像平面
+				Point2D p1_pixel, p2_pixel;
+				bool visible1 = project_point(p1_cam, p1_pixel, cam);
+				bool visible2 = project_point(p2_cam, p2_pixel, cam);
+
+				// 仅当两端点均可见时才保留该边
+				if (visible1 && visible2) {
+					visible_lines.push_back({ p1_pixel, p2_pixel });
+					_allObs[pose_idx][cnt] << p1_pixel.coord(0), p1_pixel.coord(1),
+						p2_pixel.coord(0), p2_pixel.coord(1);
+				}
+				else {
+					_allObs[pose_idx][cnt] << 0, 0, 0, 0;
+				}
+				++cnt;
+			}
+
+			// 输出当前位姿的观测结果
+			std::cout << "Pose " << pose_idx + 1 << "观测到 "
+				<< visible_lines.size() << " 条线段:\n";
+			//for (const Line2D& line : visible_lines) {
+			//	std::cout << " 线段: (" << line.p1.coord.x() << ", "
+			//		<< line.p1.coord.y() << ") -> ("
+			//		<< line.p2.coord.x() << ", "
+			//		<< line.p2.coord.y() << ")\n";
+			//}
+		}
+
+		return 0;
+	}
+	OPTIMIZE_LYJ_API void test_optimize_UV2_Pose3d_Line3d()
+	{
+		double fx = 500;
+		double fy = 500;
+		double cx = 320;
+		double cy = 240;
+		int w = 640;
+		int h = 480;
+		std::vector<Eigen::Matrix<double, 3, 4>> tTwcs;
+		std::vector<Eigen::Matrix<double, 6, 1>> tline3Dws;
+		std::vector<std::vector<Eigen::Vector4d>> allObs;
+		genLineData(tTwcs, tline3Dws, allObs, 0, 0);
+		Eigen::Matrix3d K;
+		K << fx, 0, cx,
+			0, fy, cy,
+			0, 0, 1;
+		Eigen::Matrix3d KK;
+		OPTIMIZE_BASE::convertK2KK(K, KK);
+
+		uint64_t vId = 0;
+		uint64_t fId = 0;
+		std::vector<std::shared_ptr<OptVarAbr<double>>> TwcVars;
+		std::vector<std::shared_ptr<OptVarAbr<double>>> line3DwVars;
+		OptimizerSmalld optimizer;
+		//OptimizerLargeSparse optimizer;
+		optimizer.setMaxIter(100);
+
+		auto funcGenerateLineVertex = [&](Eigen::Vector4d& _line3Dw, uint64_t& _vId, bool _fix = false)
+			{
+				std::shared_ptr<OptVarAbr<double>> varPtr = std::make_shared<OptVarLine3d>(_vId);
+				varPtr->setData(_line3Dw.data());
+				varPtr->setFixed(_fix);
+				optimizer.addVariable(varPtr);
+				line3DwVars.push_back(varPtr);
+				++_vId;
+			};
+		auto funcGeneratePoseVertex = [&](Eigen::Matrix<double, 3, 4>& _Twc, uint64_t& _vId, bool _fix = false)
+			{
+				std::shared_ptr<OptVarAbr<double>> varPtr = std::make_shared<OptVarPose3d>(_vId);
+				varPtr->setData(_Twc.data());
+				varPtr->setFixed(_fix);
+				optimizer.addVariable(varPtr);
+				TwcVars.push_back(varPtr);
+				++_vId;
+			};
+
+		std::vector<Eigen::Matrix<double, 3, 4>> Twcs;
+		std::vector<Eigen::Matrix<double, 6, 1>> line3Dws;
+		std::vector<std::vector<Eigen::Vector4d>> allObsTmp;
+		genLineData(Twcs, line3Dws, allObsTmp, 0.1, 0.1);
+		std::vector<Eigen::Matrix<double, 3, 4>> Tcws(Twcs.size());
+		std::vector<Eigen::Vector4d> orthws(line3Dws.size());
+		for (size_t i = 0; i < Twcs.size(); i++)
+		{
+			if (i == 0) {
+				Tcws[i] = OPTIMIZE_BASE::invPose(tTwcs[i]);
+				funcGeneratePoseVertex(Tcws[i], vId, true);
+			}
+			else {
+				Tcws[i] = OPTIMIZE_BASE::invPose(Twcs[i]);
+				funcGeneratePoseVertex(Tcws[i], vId, false);
+			}
+		}
+		for (size_t i = 0; i < line3Dws.size(); i++)
+		{
+			if (i == 0 || i > 4) {
+				orthws[i] = OPTIMIZE_BASE::pp_to_orth(tline3Dws[i].head(3), tline3Dws[i].tail(3));
+				funcGenerateLineVertex(orthws[i], vId, true);
+			}
+			else {
+				orthws[i] = OPTIMIZE_BASE::pp_to_orth(line3Dws[i].head(3), line3Dws[i].tail(3));
+				funcGenerateLineVertex(orthws[i], vId, false);
+			}
+		}
+
+		auto funcGenerateFactor = [&](Eigen::Vector4d& _ob, uint64_t _vId1, uint64_t _vId2, uint64_t& _fId)
+			{
+				std::shared_ptr<OptFactorAbr<double>> factorPtr = std::make_shared<OptFactorLine2d_Pose3d_Line3d>(_fId);
+				OptFactorLine2d_Pose3d_Line3d* factor = dynamic_cast<OptFactorLine2d_Pose3d_Line3d*>(factorPtr.get());
+				factor->setObs(_ob, KK);
+				std::vector<uint64_t> vIds;
+				vIds.push_back(_vId1);
+				vIds.push_back(_vId2);
+				optimizer.addFactor(factorPtr, vIds);
+				++_fId;
+			};
+		for (int i = 0; i < allObs.size(); ++i)
+		{
+			for (int j = 0; j < allObs[i].size(); ++j)
+			{
+				if (allObs[i][j].isZero())
+					continue;
+				funcGenerateFactor(allObs[i][j], TwcVars[i]->getId(), line3DwVars[j]->getId(), fId);
+
+				//const Eigen::Matrix3d& Rcw = Tcws[i].block(0, 0, 3, 3);
+				//const Eigen::Vector3d& tcw = Tcws[i].block(0, 3, 3, 1);
+
+				//const Eigen::Vector2d& obsp = allObs[i][j].head(2);
+				//const Eigen::Vector3d& linewsP = line3Dws[j].head(3);
+				//Eigen::Vector3d sPc = Rcw * linewsP + tcw;
+				//double z = sPc[2];
+				//sPc /= z;
+				//Eigen::Vector3d spc = K * sPc;
+				////std::cout << obsp[0] - spc[0] << ", " << obsp[1] - spc[1] << std::endl;
+
+				//const Eigen::Vector2d& obep = allObs[i][j].tail(2);
+				//const Eigen::Vector3d& lineweP = line3Dws[j].tail(3);				
+				//Eigen::Vector3d ePc = Rcw * lineweP + tcw;
+				//double z2 = ePc[2];
+				//ePc /= z2;
+				//Eigen::Vector3d epc = K * ePc;
+				////std::cout << obep[0] - epc[0] << ", " << obep[1] - epc[1] << std::endl;
+
+				//Eigen::Vector3d v = lineweP - linewsP;
+				//std::cout << linewsP << std::endl << std::endl;
+				//std::cout << lineweP << std::endl << std::endl;
+				//std::cout << v << std::endl << std::endl;
+				//Eigen::Matrix<double, 6, 1> plkW = OPTIMIZE_BASE::line_to_plk(linewsP, v);
+				//std::cout << plkW << std::endl << std::endl;
+				//Eigen::Matrix<double, 6, 1> lineW = OPTIMIZE_BASE::orth_to_plk(orthws[j]);
+				//std::cout << lineW << std::endl << std::endl;
+				//Eigen::Matrix<double, 6, 1> lineC = OPTIMIZE_BASE::plk_to_pose(lineW, Rcw, tcw);
+				//Eigen::Vector3d nc = lineC.head(3);
+				//Eigen::Vector3d l2d = KK * nc;
+				//double l_norm = l2d(0) * l2d(0) + l2d(1) * l2d(1);
+				//double l_sqrtnorm = sqrt(l_norm);
+				//double e1 = obsp(0) * l2d(0) + obsp(1) * l2d(1) + l2d(2);
+				//double e2 = obep(0) * l2d(0) + obep(1) * l2d(1) + l2d(2);
+				//Eigen::Vector2d err;
+				//err(0) = e1 / l_sqrtnorm;
+				//err(1) = e2 / l_sqrtnorm;
+				//std::cout << err << std::endl;
+				//if (err.norm() > 0.01)
+				//	std::cout << "Large error!" << std::endl;
+
+				continue;
+			}
+		}
+
+		optimizer.run();
+		return;
+	}
+	
+	
+	OPTIMIZE_LYJ_API void ceres_Check_UV_Pose3d_Line3d()
+	{
+		std::vector<Eigen::Matrix<double, 3, 4>> tTwcs;
+		std::vector<Eigen::Matrix<double, 6, 1>> tline3Dws;
+		std::vector<std::vector<Eigen::Vector4d>> allObs;
+		genLineData(tTwcs, tline3Dws, allObs, 0, 0);
+		std::vector<Eigen::Matrix<double, 3, 4>> Twcs;
+		std::vector<Eigen::Matrix<double, 6, 1>> line3Dws;
+		std::vector<std::vector<Eigen::Vector4d>> allObsTmp;
+		genLineData(Twcs, line3Dws, allObsTmp, 0, 1);
+		std::vector<Eigen::Matrix<double, 3, 4>> Tcws(Twcs.size());
+		for (size_t i = 0; i < Twcs.size(); i++)
+		{
+			Tcws[i] = OPTIMIZE_BASE::invPose(Twcs[i]);
+		}
+		OPTIMIZE_LYJ::OPTIMIZE_CERES::ceresCheckTcwLineUV(Tcws, line3Dws, allObs);
+		return;
+	}
 } // namespace OPTIMIZE_LYJ
