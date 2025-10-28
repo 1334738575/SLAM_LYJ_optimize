@@ -209,6 +209,11 @@ namespace OPTIMIZE_LYJ
                 -s2, s1* c2, c1* c2;
             //double w1 = phi;
             //double w2 = 1;
+            double w1 = cos(phi)
+            double w2 = sin(phi)
+            Eigen::Matrix2d W;
+            W << w1, -w2, w2, w1;
+
             Eigen::Map<const Eigen::Vector3d> detTheta(_detX);
             const double& detPhi = _detX[3];
             Eigen::Matrix3d Rz;
@@ -232,6 +237,10 @@ namespace OPTIMIZE_LYJ
             Eigen::Vector3d u1 = Rf.col(0);
             Eigen::Vector3d u2 = Rf.col(1);
             Eigen::Vector3d u3 = Rf.col(2);
+            double detw1 = cos(detPhi)
+            double detw2 = sin(detPhi)
+            Eigen::Matrix2d detW;
+            detW << detw1, -detw2, detw2, detw1;
             //thetaPlus[0] = atan2(u2(2), u3(2));
             //thetaPlus[1] = asin(-u1(2));
             //thetaPlus[2] = atan2(u1(1), u1(0));
@@ -245,8 +254,9 @@ namespace OPTIMIZE_LYJ
             m_data[0] = atan2(u2(2), u3(2));
             m_data[1] = asin(-u1(2));
             m_data[2] = atan2(u1(1), u1(0));
-            m_data[3] = phi + detPhi;
-
+            // m_data[3] = phi + detPhi;
+            Eigen::Matrix2d fW = W * detW;
+            m_data[3] = asin(fW(1, 0));
             return true;
         }
 
