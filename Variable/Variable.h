@@ -209,8 +209,8 @@ namespace OPTIMIZE_LYJ
                 -s2, s1* c2, c1* c2;
             //double w1 = phi;
             //double w2 = 1;
-            double w1 = cos(phi)
-            double w2 = sin(phi)
+            double w1 = cos(phi);
+            double w2 = sin(phi);
             Eigen::Matrix2d W;
             W << w1, -w2, w2, w1;
 
@@ -237,8 +237,8 @@ namespace OPTIMIZE_LYJ
             Eigen::Vector3d u1 = Rf.col(0);
             Eigen::Vector3d u2 = Rf.col(1);
             Eigen::Vector3d u3 = Rf.col(2);
-            double detw1 = cos(detPhi)
-            double detw2 = sin(detPhi)
+            double detw1 = cos(detPhi);
+            double detw2 = sin(detPhi);
             Eigen::Matrix2d detW;
             detW << detw1, -detw2, detw2, detw1;
             //thetaPlus[0] = atan2(u2(2), u3(2));
