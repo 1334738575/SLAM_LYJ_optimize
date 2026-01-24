@@ -1,3 +1,7 @@
+#ifdef HAS_CERES
+
+
+
 #include "CeresCheck.h"
 
 
@@ -303,3 +307,5 @@ namespace OPTIMIZE_LYJ
         }
 	}
 }
+
+#endif // HAS_CERES

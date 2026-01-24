@@ -1,3 +1,7 @@
+#pragma once
+#ifdef HAS_CERES
+
+
 #include <ceres/ceres.h>
 #include <ceres/manifold.h>
 #include <Eigen/Dense>
@@ -149,3 +153,5 @@ namespace OPTIMIZE_LYJ
         int ceresCheckTcwLineUV(std::vector<Eigen::Matrix<double, 3, 4>>& _Tcws, std::vector<Eigen::Matrix<double, 6, 1>>& _line3Ds, const std::vector<std::vector<Eigen::Vector4d>>& _obs);
 	}
 }
+
+#endif // HAS_CERES

@@ -577,7 +577,9 @@ namespace OPTIMIZE_LYJ
 	}
 	OPTIMIZE_LYJ_API void ceres_Check_UV_Pose3d_P3d2()
 	{
+#ifdef HAS_CERES
 		OPTIMIZE_LYJ::OPTIMIZE_CERES::ceresCheckTcwUV();
+#endif // HAS_CERES
 		return;
 	}
 	
@@ -872,6 +874,7 @@ namespace OPTIMIZE_LYJ
 	
 	OPTIMIZE_LYJ_API void ceres_Check_UV_Pose3d_Line3d()
 	{
+#ifdef HAS_CERES
 		std::vector<Eigen::Matrix<double, 3, 4>> tTwcs;
 		std::vector<Eigen::Matrix<double, 6, 1>> tline3Dws;
 		std::vector<std::vector<Eigen::Vector4d>> allObs;
@@ -886,6 +889,7 @@ namespace OPTIMIZE_LYJ
 			Tcws[i] = OPTIMIZE_BASE::invPose(Twcs[i]);
 		}
 		OPTIMIZE_LYJ::OPTIMIZE_CERES::ceresCheckTcwLineUV(Tcws, line3Dws, allObs);
+#endif // HAS_CERES
 		return;
 	}
 } // namespace OPTIMIZE_LYJ

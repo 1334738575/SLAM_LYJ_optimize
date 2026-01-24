@@ -92,6 +92,9 @@ if(DEFINED ${PROJECT_NAME}_LIBRARY_OUTPUT_PATH)
         RUNTIME_OUTPUT_DIRECTORY ${${PROJECT_NAME}_LIBRARY_OUTPUT_PATH}
     )
     target_compile_definitions(${PROJECT_NAME} PRIVATE _DISABLE_EXTENDED_ALIGNED_STORAGE)
+    if(USE_CERES)
+        target_compile_definitions(${PROJECT_NAME} PRIVATE -DHAS_CERES)
+    endif()
 endif()
 
 # ################################example##################################
