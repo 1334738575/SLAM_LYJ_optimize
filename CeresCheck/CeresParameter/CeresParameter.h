@@ -13,6 +13,7 @@ using CeresRotationParameter = ceres::QuaternionManifold;
 using CeresTransParameter = ceres::EuclideanManifold<3>;
 using CeresPoint3DParameter = ceres::EuclideanManifold<3>;
 using CeresPoint1DParameter = ceres::EuclideanManifold<1>;
+using CeresGlobalScaleParameter = ceres::EuclideanManifold<1>;
 using CeresPose3DParameter = ceres::ProductManifold<CeresRotationParameter, CeresTransParameter>;
 // 一维角度流形（归一化到 [-pi, pi)，弧度）
 class AngleManifold : public ceres::Manifold {
@@ -100,6 +101,7 @@ public:
 using CeresLine3DParameter = ceres::ProductManifold<CeresRotationParameter, AngleManifold>;
 using CeresLine2DParameter = ceres::ProductManifold<AngleManifold, CeresPoint1DParameter>;
 using CeresRay3DParameter = ceres::ProductManifold<CeresRotationParameter, AngleManifold, CeresPoint1DParameter>;
+using CeresRay3DParameter2 = ceres::ProductManifold<CeresPoint3DParameter, AngleManifold, AngleManifold>;
 
 
 #endif // HAS_CERES
