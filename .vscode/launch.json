@@ -5,29 +5,29 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "C/C++ Runner: Debug Session",
-            "type": "cppdbg",
-            "request": "launch",
-            "args": [],
-            "stopAtEntry": false,
-            "externalConsole": true,
-            "cwd": "${workspaceFolder}",
-            "program": "${workspaceFolder}/build/test.exe",
-            "MIMode": "gdb",
-            "miDebuggerPath": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
+            "name": "CMake: my_app", // 配置名（自定义）
+            "type": "cppvsdbg", // 调试器类型：Windows用cppvsdbg，Linux用gdb，macOS用lldb-vscode
+            "request": "launch", // 启动方式：launch（启动程序）/attach（附加到进程）
+            "program": "${command:cmake.launchTargetPath}", // 可执行文件路径
+            "args": [], // 传递给程序的命令行参数（如 ["--input", "test.txt"]）
+            "stopAtEntry": false, // 是否在程序入口处暂停
+            "cwd": "${workspaceFolder}", // 程序运行的工作目录
             "environment": [
                 {
                     "name": "PATH",
-                    "value": "${workspaceFolder}/build;${env:PATH}"
+                    "value": "D:/SLAM_LYJ/dependencies/Ceres/bin;D:/SLAM_LYJ/dependencies/Glog/bin;D:/SLAM_LYJ/dependencies/Gflags/Lib;D:/SLAM_LYJ/dependencies/sqlite3/bin;D:/SLAM_LYJ_Packages/SLAM_LYJ_COMMON/install/lib/cmake/../../bin;D:/SLAM_LYJ/dependencies/Opencv/bin;D:/SLAM_LYJ/dependencies/flann/bin;D:/SLAM_LYJ/dependencies/lz4/bin;D:/SLAM_LYJ/dependencies/libjpeg/bin;${env:PATH}"
                 }
-            ]
+            ], // 环境变量（如 ["PATH=${workspaceFolder}/build/bin"]）
+            "externalConsole": true, // Windows是否弹出外部控制台（建议false，用VS Code终端）
+            // "preLaunchTask": "CMake: build", // 启动前先执行CMake构建任务（关键）
+            // "miDebuggerPath": "/usr/bin/gdb", // Linux/macOS需指定调试器路径（可选）
+            // "setupCommands": [
+            //     {
+            //         "description": "为 gdb 启用整齐打印",
+            //         "text": "-enable-pretty-printing",
+            //         "ignoreFailures": true
+            //     }
+            // ]
         }
     ]
 }

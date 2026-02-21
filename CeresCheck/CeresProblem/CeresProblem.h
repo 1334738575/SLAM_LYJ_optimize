@@ -4,10 +4,19 @@
 #include "CeresCheck/CeresFactor/CeresFactor.h"
 
 
+// export
+#ifdef WIN32
+#ifdef _MSC_VER
+#define CERES_LYJ_API __declspec(dllexport)
+#else
+#define CERES_LYJ_API
+#endif
+#else
+#define CERES_LYJ_API
+#endif
 
 
-
-class CeresProblem : protected ceres::Problem
+class CERES_LYJ_API CeresProblem : protected ceres::Problem
 {
 public:
 	CeresProblem();
