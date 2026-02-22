@@ -18,8 +18,8 @@
 void testColmapOptimize()
 {
     // std::string btmPath = "D:/SLAM_LYJ_Packages/SLAM_LYJ_qt/tmp/fuse_unbounded_post.ply";
-    // SLAM_LYJ::SLAM_LYJ_MATH::BaseTriMesh btm;
-    // SLAM_LYJ::readPLYMesh(btmPath, btm);
+    // COMMON_LYJ::BaseTriMesh btm;
+    // COMMON_LYJ::readPLYMesh(btmPath, btm);
     std::string pth = "D:/gsWin/gaussian-splatting/gaussian-splatting/data/mask/sparse/0";
     // std::string imgDir = "D:/gsWin/gaussian-splatting/gaussian-splatting/data/mask/images/";
     COMMON_LYJ::ColmapData colmapData;
