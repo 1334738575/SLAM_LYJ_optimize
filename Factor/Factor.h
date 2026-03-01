@@ -451,6 +451,95 @@ namespace OPTIMIZE_LYJ
         Eigen::Matrix3d m_KK;
     };
 
+    class OptFactorScale_Pose3d_Point3d : public OptFactor<double, 1, 6, 3>
+    {
+    public:
+        OptFactorScale_Pose3d_Point3d(const uint64_t _id) : OptFactor<double, 1, 6, 3>(_id, OptFactorType::FACTOR_SCALE_T3D_P3D) {}
+        ~OptFactorScale_Pose3d_Point3d() {}
+        void setObs(double _squareScale)
+        {
+            squareScale_ = _squareScale;
+        }
+        // 通过 OptFactor 继承
+        bool calculateErrAndJac(double* _err, double** _jacs, double _w, OptVarAbr<double>** _values) const override
+        {
+            if (!checkVDims(_values))
+                return false;
+            if (_err == nullptr)
+                return false;
+            const auto& tanDims = m_vDims;
+            int eDim = getEDim();
+            int vSz = getVNum();
+
+            std::vector<double*> ptrs(vSz, nullptr);
+            std::vector<int> vDims(vSz, 0);
+            for (int i = 0; i < vSz; ++i)
+            {
+                ptrs[i] = _values[i]->getData();
+                vDims[i] = _values[i]->getDim();
+            }
+
+            //后续用buffer
+            std::vector<double> err(eDim, 0);
+            std::vector<std::vector<double>> jacs(vSz, std::vector<double>());
+            for (int i = 0; i < vSz; ++i)
+            {
+                jacs[i].assign(eDim * tanDims[i], 0);
+            }
+
+            cal_err_and_jac(ptrs, vDims, err, jacs);
+
+            memcpy(_err, err.data(), sizeof(double) * eDim);
+            for (int i = 0; i < vSz; ++i)
+            {
+                if (_jacs[i])
+                    memcpy(_jacs[i], jacs[i].data(), sizeof(double) * jacs[i].size());
+            }
+            return true;
+        }
+
+        void cal_err_and_jac(const std::vector<double*>& _vs, const std::vector<int>& _vDims,
+            std::vector<double>& _err, std::vector<std::vector<double>>& _jacs) const
+        {
+            Eigen::Map<const Eigen::Matrix<double, 3, 4>> Tcw(_vs[0], 3, 4);
+            Eigen::Map<const Eigen::Vector3d> Pw(_vs[1], 3);
+            //std::cout << Tcw << std::endl;
+            //std::cout << Pw << std::endl;
+
+            double& err = _err[0];
+            Eigen::Map<Eigen::Matrix<double, 1, 6>> jac_scale_T(_jacs[0].data(), 1, 6);
+            Eigen::Map<Eigen::Matrix<double, 1, 3>> jac_scale_P(_jacs[1].data(), 1, 3);
+
+            Eigen::Vector3d Pc;
+            Pc(0) = Tcw(0, 0) * Pw(0) + Tcw(0, 1) * Pw(1) + Tcw(0, 2) * Pw(2) + Tcw(0, 3);
+            Pc(1) = Tcw(1, 0) * Pw(0) + Tcw(1, 1) * Pw(1) + Tcw(1, 2) * Pw(2) + Tcw(1, 3);
+            Pc(2) = Tcw(2, 0) * Pw(0) + Tcw(2, 1) * Pw(1) + Tcw(2, 2) * Pw(2) + Tcw(2, 3);
+            err = squareScale_ - Pc.squaredNorm();
+            std::cout << "square scale:" << Pc.squaredNorm() << std::endl;
+            std::cout << "square scale error:" << err << std::endl;
+            Eigen::Matrix<double, 1, 3> dedPc;
+            dedPc(0) = -2 * Pc(0);
+            dedPc(1) = -2 * Pc(1);
+            dedPc(2) = -2 * Pc(2);
+            Eigen::Matrix<double, 3, 6> dPcdT;
+            dPcdT.block(0, 0, 3, 3).setIdentity();
+            dPcdT.block(0, 3, 3, 3) << 0, Pc(2), -1 * Pc(1),
+                -1 * Pc(2), 0, Pc(0),
+                Pc(1), -1 * Pc(0), 0;
+            jac_scale_T = dedPc * dPcdT;
+            Eigen::Matrix3d dPcPw = Tcw.block(0, 0, 3, 3);
+            jac_scale_P = dedPc * dPcPw;
+            if (std::isnan(err) || std::isnan(jac_scale_T.norm()) || std::isnan(jac_scale_P.norm()))
+            {
+                std::cout << err << std::endl;
+                std::cout << jac_scale_T << std::endl;
+                std::cout << jac_scale_P << std::endl;
+            }
+        }
+
+    private:
+        double squareScale_ = 1;
+    };
 
 }
 

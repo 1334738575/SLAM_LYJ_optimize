@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <Optimize_LYJ_Defines.h>
+#include <chrono>
 
 namespace OPTIMIZE_LYJ
 {
@@ -73,70 +74,6 @@ namespace OPTIMIZE_LYJ
 		typedef OptConnect Var2Factor;
 		typedef OptConnect Factor2Var;
 
-		// template <typename T>
-		class MatInner
-		{
-		public:
-			MatInner() {}
-			MatInner(const int _r, const int _c) : m_r(_r), m_c(_c)
-			{
-				m_data = new T[_r * _c];
-				reset();
-			}
-			~MatInner()
-			{
-				if (m_data)
-					delete m_data;
-			}
-			inline void reset() { memset(m_data, 0, sizeof(T) * m_r * m_c); }
-			inline T *getData() { return m_data; }
-			inline const T *getData() const { return m_data; }
-			inline void setData(T *_data) { memcpy(m_data, _data, sizeof(T) * m_r * m_c); }
-			inline const int r() const { return m_r; }
-			inline const int c() const { return m_c; }
-
-		private:
-			T *m_data = nullptr;
-			int m_r = -1;
-			int m_c = -1;
-		};
-		class JacManager
-		{
-		public:
-			JacManager(const uint64_t _id, const Var2Factor &_v2f,
-					   const std::vector<OptFactorAbr<T>> &_factors, const std::vector<Factor2Var> &_factor2Vars)
-			{
-				m_id = _id;
-				m_jacs.resize(_v2f.size());
-				for (int i = 0; i < _v2f.size(); i++)
-				{
-					const uint64_t &fId = _v2f.connectId(i);
-					const Factor2Var &f2v = _factor2Vars[fId];
-					const OptFactorAbr<T> &f = _factors[fId];
-					const int r = f.getEDim();
-					const std::vector<int> vDims = f.getVDims();
-					for (int j = 0; j < f2v.size(); j++)
-					{
-						if (_id != f2v.connectId(j))
-							continue;
-						const int &c = vDims[j];
-						m_jacs[i] = MatInner(r, c);
-					}
-				}
-			}
-			~JacManager() {}
-
-			// 非位姿jac，QR分解，变换位姿jac
-			void QR()
-			{
-			}
-
-		private:
-			uint64_t m_id = UINT64_MAX;
-			std::vector<MatInner> m_jacs;
-			// std::vector<MatInner<T>> m_jacs;
-		};
-
 		OptimizerAbr() {}
 		~OptimizerAbr()
 		{
@@ -148,18 +85,34 @@ namespace OPTIMIZE_LYJ
 			m_curIter = 0;
 			for (m_curIter = 0; m_curIter < m_maxIterNum; ++m_curIter)
 			{
+				auto n = std::chrono::high_resolution_clock::now();
 				T err = -1;
+				if (!init())
+					return false;
+				auto nn = std::chrono::high_resolution_clock::now();
 				if (!generateAB(err))
 					return false;
+				auto n2 = std::chrono::high_resolution_clock::now();
 				if (!solveDetX())
 					return false;
+				auto n3 = std::chrono::high_resolution_clock::now();
 				if (isFinish(m_curIter, err))
 					break;
+				auto n4 = std::chrono::high_resolution_clock::now();
 				if (!updateX())
 					return false;
+				auto n5 = std::chrono::high_resolution_clock::now();
+				double tIni = std::chrono::duration_cast<std::chrono::milliseconds>(nn - n).count();
+				double tGen = std::chrono::duration_cast<std::chrono::milliseconds>(n2 - nn).count();
+				double tSlv = std::chrono::duration_cast<std::chrono::milliseconds>(n3 - n2).count();
+				double tfin = std::chrono::duration_cast<std::chrono::milliseconds>(n4 - n3).count();
+				double tupd = std::chrono::duration_cast<std::chrono::milliseconds>(n5 - n4).count();
+				std::cout << "init: " << tIni << ",\tgenerate: " << tGen << ",\tsolve: " << tSlv << ",\tfinish: " << tfin << ",\tupdate: " << tupd << std::endl;
 			}
 			return true;
 		}
+
+		virtual bool init() = 0;
 
 		virtual bool generateAB(T &_err) = 0;
 
@@ -169,9 +122,10 @@ namespace OPTIMIZE_LYJ
 
 		virtual bool isFinish(const int _i, const T _err)
 		{
+			double detErr = std::abs(m_lastErr - _err);
 			m_lastErr = _err;
 			std::cout << "iter: " << _i << ", err: " << _err << std::endl;
-			if (_err <= m_minErrTh || _i >= m_maxIterNum)
+			if (_err <= m_minErrTh || _i >= m_maxIterNum || detErr < 1e-6)
 				return true;
 			return false;
 		}
@@ -216,7 +170,6 @@ namespace OPTIMIZE_LYJ
 		std::map<uint64_t, Var2Factor> m_var2Factors;
 		std::vector<std::shared_ptr<OptFactorAbr<T>>> m_factors;
 		std::map<uint64_t, Factor2Var> m_factor2Vars;
-		std::vector<JacManager> m_jacManagers;
 	};
 
 }

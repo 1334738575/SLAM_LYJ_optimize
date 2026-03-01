@@ -17,6 +17,8 @@ namespace OPTIMIZE_LYJ
 	private:
 
 		// 通过 OptimizerAbr 继承，默认var和factor的id都是从0开始且连续 TODO
+		bool init() override;
+
 		bool generateAB(double& _err) override;
 
 		bool solveDetX() override;
@@ -40,6 +42,8 @@ namespace OPTIMIZE_LYJ
 	private:
 
 		// 通过 OptimizerAbr 继承
+		bool init() override;
+
 		bool generateAB(double& _err) override;
 
 		bool solveDetX() override;
@@ -62,8 +66,45 @@ namespace OPTIMIZE_LYJ
 
 	private:
 
+		class FactorMat
+		{
+		public:
+			FactorMat()
+			{
+			}
+			~FactorMat() {}
+
+
+		//private:
+			std::shared_ptr<OptFactorAbr<double>> m_factor = nullptr;
+			std::vector<Eigen::MatrixXd> m_jacs;
+			Eigen::VectorXd m_err;
+		};
+		class EliminationMat
+		{
+		public:
+			EliminationMat() {}
+			~EliminationMat() {}
+
+			// 非位姿jac，QR分解，变换位姿jac
+			void QR()
+			{
+			}
+			void solveElimination() 
+			{
+			}
+
+		private:
+			std::vector<Eigen::MatrixXd> m_jacs;
+			Eigen::VectorXd m_err;
+			std::vector<Eigen::MatrixXd> m_jacsRemand;
+			Eigen::VectorXd m_errRemand;
+		};
+
 
 		// 通过 OptimizerAbr 继承
+		bool init() override;
+
 		bool generateAB(double& _err) override;
 
 		bool solveDetX() override;
@@ -71,17 +112,11 @@ namespace OPTIMIZE_LYJ
 		bool updateX() override;
 
 	private:
-		Eigen::MatrixXd m_A;
+		Eigen::SparseMatrix<double> m_A;
 		Eigen::VectorXd m_B;
 		Eigen::VectorXd m_DetX;
-
-
-		Eigen::MatrixXd newJac;
-		Eigen::VectorXd newErr;
-		Eigen::MatrixXd newJac2;
-		Eigen::MatrixXd newJac3;
-		Eigen::VectorXd newErr2;
-		Eigen::VectorXd newDetX;
+		std::vector<FactorMat> m_factorMats;
+		std::vector<EliminationMat> m_eliminationMats;
 	};
 
 
