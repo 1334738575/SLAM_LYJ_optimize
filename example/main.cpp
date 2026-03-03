@@ -167,9 +167,9 @@ void showMatch(COMMON_LYJ::ColmapData& _colmapData, int _ind1, int _ind2, std::s
 }
 void testColmapOptimize2()
 {
-    std::string imageDir = "D:/tmp/colmapData/mask2/dense/images/";
+    std::string imageDir = "D:/tmp/colmapData/mask/dense/images/";
     using namespace OPTIMIZE_LYJ;
-    std::string dataPath = "D:/tmp/colmapData/mask2/dense/sparse/";
+    std::string dataPath = "D:/tmp/colmapData/mask/dense/sparse/";
     std::string pth = dataPath + "0";
     COMMON_LYJ::ColmapData colmapData;
     colmapData.readFromColmap(pth);
@@ -279,8 +279,9 @@ void testColmapOptimize2()
             p->setFixed(true);
         varTId2Ori[varId] = Tcw.first;
         ori2VarTInd[Tcw.first] = varId;
-        ++varId;
         optimizer.addVariable(p);
+        varTcws.push_back(p);
+        ++varId;
     }
     for (const auto& point : pointsPtr)
     {
@@ -288,8 +289,9 @@ void testColmapOptimize2()
         p->setData(point.second->point3D.data());
         varPId2Ori[varId] = point.first;
         ori2VarPInd[point.first] = varId - imgSz;
-        ++varId;
         optimizer.addVariable(p);
+        varPoints[varId - imgSz] = p;
+        ++varId;
     }
     
     auto funcGenerateScaleFactor = [&](double _ob, uint64_t _vId1, uint64_t _vId2, uint64_t& _fId)

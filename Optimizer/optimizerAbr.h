@@ -146,7 +146,7 @@ namespace OPTIMIZE_LYJ
 			return true;
 		}
 
-		static bool checkEnable(const std::vector<std::shared_ptr<OptVarAbr<T>>> _vars, const Factor2Var &_factor2Vars, std::shared_ptr<OptFactorAbr<T>> _factor)
+		static bool checkEnable(const std::vector<std::shared_ptr<OptVarAbr<T>>>& _vars, const Factor2Var &_factor2Vars, std::shared_ptr<OptFactorAbr<T>> _factor)
 		{
 			int connectCnt = _factor2Vars.size();
 			bool isEnable = false;

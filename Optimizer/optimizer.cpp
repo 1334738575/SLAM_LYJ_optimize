@@ -366,6 +366,22 @@ namespace OPTIMIZE_LYJ
     {}
     bool OptimizeLargeSRBA::init()
     {
+        m_vars.clear();
+        m_var2Factors.clear();
+        m_factors.clear();
+        m_factor2Vars.clear();
+        m_factorMats.clear();
+        m_eliminationMats.clear();
+        m_eliminationType.clear();
+        m_cLocs.clear();
+        m_rLocs.clear();
+        for (int i = 0; i < m_vars.size(); ++i)
+        {
+            const auto& t = m_vars[i]->getType();
+            if (t == VAR_T3D || t == VAR_T2D || t == VAR_IMU)
+                continue;
+            m_eliminationType.insert(t);
+        }
         return true;
     }
     bool OptimizeLargeSRBA::generateAB(double &_err)
@@ -385,12 +401,14 @@ namespace OPTIMIZE_LYJ
                         std::cout << "error factor!" << std::endl;
                         return false;
                     }
-                    std::vector<Eigen::MatrixXd>& jacs = m_factorMats[i].m_jacs;
-                    m_factorMats[i].m_factor = factor;
                     const auto& fId = factor->getId();
                     eDim = factor->getEDim();
                     m_factorMats[i].m_err.resize(eDim);
                     const auto& f2vs = this->m_factor2Vars[fId];
+                    std::vector<Eigen::MatrixXd>& jacs = m_factorMats[i].m_jacs;
+                    m_factorMats[i].m_f2vs = f2vs;
+                    m_factorMats[i].m_id = fId;
+                    //m_factorMats[i].m_factor = factor;
                     connectCnt = f2vs.size();
                     vars.resize(connectCnt);
                     for (int j = 0; j < connectCnt; ++j)
@@ -404,22 +422,191 @@ namespace OPTIMIZE_LYJ
                         jacs[j].resize(eDim, tanDim);
                         jacPtrs[j] = jacs[j].data();
                     }
+                    m_factorMats[i].m_vars = vars;
                     double* errPtr = m_factorMats[i].m_err.data();
                     factor->calculateErrAndJac(errPtr, jacPtrs.data(), 1, vars.data());
-
-
                 }
+                return true;
             };
+        funcCalFactorMats();
+
+        int vSz = m_vars.size();
+        int fSz = m_factors.size();
+        int cols = 0;
+        m_cLocs.resize(vSz + 1, 0);
+        std::vector<FactorMat*> fMatsTmp;
+        FactorMat fMatTmp;
+        for (int i = 0; i < vSz; ++i)
+        {
+            const auto& t = m_vars[i]->getType();
+            const int& vId = m_vars[i]->getId();
+            fMatsTmp.clear();
+            if (m_vars[i]->isFixed())
+            {
+
+            }
+            else if (m_eliminationType.count(t))
+            {
+                //new factor
+                Var2Factor v2fs = m_var2Factors[vId];
+                int cSz = v2fs.size();
+                for (int j = 0; j < cSz; ++j)
+                {
+                    const auto& fId = v2fs.connectId(j);
+                    FactorMat* fMat = &m_factorMats[fId];
+                    fMatsTmp.push_back(fMat);
+                    fMat->m_valid = false;
+                }
+                m_eliminationMats.emplace_back(fMatsTmp, t, vId);
+                fMatTmp.m_id = m_factorMats.size();
+                m_factorMats.push_back(fMatTmp);
+                m_eliminationMats.back().m_factorMatRemand = &m_factorMats.back();
+                continue;
+            }
+            else
+            {
+                cols += m_vars[i]->getTangentDim();
+            }
+            m_cLocs[i + 1] = cols;
+        }
+
+        int fSzNew = m_factorMats.size();
+        for (int i = 0; i < fSzNew - fSz; ++i)
+        {
+            m_eliminationMats[i].QR();
+        }
+
+        m_rLocs.resize(fSzNew, 0);
+        int rows = 0;
+        for (int i = 0; i < fSzNew; ++i)
+        {
+            if (m_factorMats[i].m_valid)
+                rows += m_factorMats[i].getEDim();
+            m_rLocs[i + 1] = rows;
+        }
+
+        std::vector<Eigen::Triplet<double>> tripletLists;
+        tripletLists.reserve(cols * 100);
+        Eigen::SparseMatrix<double> Jac(rows, cols);
+        Eigen::VectorXd Err(rows);
+        Err.setZero();
+        for (int i = 0; i < fSzNew; ++i)
+        {
+            int sr = m_rLocs[i];
+            int er = m_rLocs[i + 1];
+            if (sr == er)
+                continue;
+            //const auto& vars = m_factorMats[i].m_vars;
+            const auto& f2vs = m_factorMats[i].m_f2vs;
+            int cSz = f2vs.size();
+            for (int j = 0; j < cSz; ++j)
+            {
+                const auto& vId = f2vs.connectId(j);
+                int sc = m_cLocs[vId];
+                int ec = m_cLocs[vId + 1];
+                if (sc == ec)
+                    continue;
+                const auto& jac = m_factorMats[i].m_jacs[j];
+                const auto& err = m_factorMats[i].m_err;
+                for (int r = 0; r < (er - sr); ++r)
+                {
+                    for (int c = 0; c < (ec - sc); ++c)
+                    {
+                        tripletLists.emplace_back(sr + r, sc + c, jac(r, c));
+                    }
+                    Err(sr + r) = err(r);
+                }
+            }
+        }
+
+
+        Jac.setFromTriplets(tripletLists.begin(), tripletLists.end());
+        m_A = Jac.transpose() * Jac;
+        m_B = -1 * Jac.transpose() * Err;
+        _err = 0;
+        for (int i = 0; i < Err.rows(); ++i)
+            _err += std::abs(Err(i));
+        _err /= Err.rows();
         return true;
     }
     bool OptimizeLargeSRBA::solveDetX()
     {
+        // 创建求解器
+        Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
+        solver.compute(m_A);
+        if (solver.info() != Eigen::Success)
+        {
+            std::cerr << "Decomposition failed!" << std::endl;
+            return false;
+        }
 
+        //Eigen::MatrixXd A(m_A);
+        //// 2. 创建自伴随（实对称）特征值求解器，计算特征值和特征向量
+        //Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(A);
+        //// 检查求解是否成功
+        //if (eigensolver.info() != Eigen::Success) {
+        //    std::cerr << "特征值求解失败！" << std::endl;
+        //    return -1;
+        //}
+        //// 3. 获取结果
+        //// 特征值（已按升序排列）
+        //Eigen::Vector3d eigenvalues = eigensolver.eigenvalues();
+        //// 4. 输出结果
+        //std::cout << "特征值（升序）：\n" << eigenvalues.minCoeff() << "\n\n";
+
+        // 求解 Ax = b
+        m_DetX = solver.solve(m_B);
+        // 检查求解结果
+        if (solver.info() != Eigen::Success)
+        {
+            std::cerr << "Solving failed!" << std::endl;
+            return false;
+        }
+        // std::cout << "The solution is:\n" << m_DetX << std::endl;
         return true;
     }
     bool OptimizeLargeSRBA::updateX()
     {
+        for (int i = 0; i < this->m_vars.size(); ++i)
+        {
+            int sc = m_cLocs[i];
+            int ec = m_cLocs[i + 1];
+            if (sc == ec)
+                continue;
+            auto var = this->m_vars[i];
+            double* detXPtr = this->m_DetX.data() + sc;
+            var->update(detXPtr);
+        }
 
+        int eSz = m_eliminationMats.size();
+        std::vector<Eigen::Map<Eigen::VectorXd>> dXs;
+        Eigen::VectorXd dXEli;
+        for (int i = 0; i < eSz; ++i)
+        {
+            dXs.clear();
+            const auto& vars = m_eliminationMats[i].m_factorMatEliminate.m_vars;
+            const auto& f2vs = m_eliminationMats[i].m_factorMatEliminate.m_f2vs;
+            const auto& vIdEli = m_eliminationMats[i].m_vId;
+            int cSz = f2vs.size();
+            int eliDim = m_vars[vIdEli]->getTangentDim();
+            dXEli.resize(eliDim);
+            //dXs.resize(cSz);
+            for (int j = 0; j < cSz; ++j)
+            {
+                const auto& vId = f2vs.connectId(j);
+                if (vId == vIdEli)
+                {
+                    Eigen::Map<Eigen::VectorXd> dX(dXEli.data(), eliDim);
+                    dXs.push_back(dX);
+                    continue;
+                }
+                int sc = m_cLocs[vId];
+                int ec = m_cLocs[vId + 1];
+                Eigen::Map<Eigen::VectorXd> dX(m_DetX.data() + sc, ec - sc);
+                dXs.push_back(dX);
+            }
+            m_eliminationMats[i].solveElimination(dXs);
+        }
         return true;
     }
 }

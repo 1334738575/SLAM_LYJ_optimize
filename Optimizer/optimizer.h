@@ -4,6 +4,7 @@
 #include "optimizerAbr.h"
 #include <Eigen/Core>
 #include <Eigen/Eigen>
+#include <set>
 
 
 namespace OPTIMIZE_LYJ
@@ -74,31 +75,40 @@ namespace OPTIMIZE_LYJ
 			}
 			~FactorMat() {}
 
+			int getEDim() const { return m_err.rows(); }
+
 
 		//private:
-			std::shared_ptr<OptFactorAbr<double>> m_factor = nullptr;
+			uint64_t m_id;
+			//std::shared_ptr<OptFactorAbr<double>> m_factor = nullptr;
 			std::vector<Eigen::MatrixXd> m_jacs;
 			Eigen::VectorXd m_err;
+			Factor2Var m_f2vs;
+			std::vector<OptVarAbr<double>*> m_vars;
+			bool m_valid = true;
 		};
 		class EliminationMat
 		{
 		public:
-			EliminationMat() {}
+			EliminationMat(const std::vector<FactorMat*>& _fMatsIn, OptVarType _eliminationType, uint64_t _vId)
+				:m_fMatsIn(_fMatsIn), m_eliminationType(_eliminationType), m_vId(_vId)
+			{}
 			~EliminationMat() {}
 
 			// 非位姿jac，QR分解，变换位姿jac
 			void QR()
 			{
 			}
-			void solveElimination() 
+			void solveElimination(std::vector<Eigen::Map<Eigen::VectorXd>> _dXs)
 			{
 			}
 
-		private:
-			std::vector<Eigen::MatrixXd> m_jacs;
-			Eigen::VectorXd m_err;
-			std::vector<Eigen::MatrixXd> m_jacsRemand;
-			Eigen::VectorXd m_errRemand;
+			std::vector<FactorMat*> m_fMatsIn;
+			OptVarType m_eliminationType;
+			uint64_t m_vId;
+		//private:
+			FactorMat* m_factorMatRemand;
+			FactorMat m_factorMatEliminate;
 		};
 
 
@@ -115,8 +125,12 @@ namespace OPTIMIZE_LYJ
 		Eigen::SparseMatrix<double> m_A;
 		Eigen::VectorXd m_B;
 		Eigen::VectorXd m_DetX;
+
 		std::vector<FactorMat> m_factorMats;
 		std::vector<EliminationMat> m_eliminationMats;
+		std::set<OptVarType> m_eliminationType;
+		std::vector<int> m_cLocs;
+		std::vector<int> m_rLocs;
 	};
 
 
