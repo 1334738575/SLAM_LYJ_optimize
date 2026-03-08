@@ -83,13 +83,12 @@ namespace OPTIMIZE_LYJ
 		virtual bool run()
 		{
 			m_curIter = 0;
+			if (!init())
+				return false;
 			for (m_curIter = 0; m_curIter < m_maxIterNum; ++m_curIter)
 			{
 				auto n = std::chrono::high_resolution_clock::now();
 				T err = -1;
-				if (!init())
-					return false;
-				auto nn = std::chrono::high_resolution_clock::now();
 				if (!generateAB(err))
 					return false;
 				auto n2 = std::chrono::high_resolution_clock::now();
@@ -102,12 +101,11 @@ namespace OPTIMIZE_LYJ
 				if (!updateX())
 					return false;
 				auto n5 = std::chrono::high_resolution_clock::now();
-				double tIni = std::chrono::duration_cast<std::chrono::milliseconds>(nn - n).count();
-				double tGen = std::chrono::duration_cast<std::chrono::milliseconds>(n2 - nn).count();
+				double tGen = std::chrono::duration_cast<std::chrono::milliseconds>(n2 - n).count();
 				double tSlv = std::chrono::duration_cast<std::chrono::milliseconds>(n3 - n2).count();
 				double tfin = std::chrono::duration_cast<std::chrono::milliseconds>(n4 - n3).count();
 				double tupd = std::chrono::duration_cast<std::chrono::milliseconds>(n5 - n4).count();
-				std::cout << "init: " << tIni << ",\tgenerate: " << tGen << ",\tsolve: " << tSlv << ",\tfinish: " << tfin << ",\tupdate: " << tupd << std::endl;
+				std::cout << "generate: " << tGen << ",\tsolve: " << tSlv << ",\tfinish: " << tfin << ",\tupdate: " << tupd << std::endl;
 			}
 			return true;
 		}

@@ -260,14 +260,16 @@ void testColmapOptimize2()
     //}
     //cv::imshow("222", m12);
     //cv::waitKey(0);
+    //imgSz = 2;
 
-    OPTIMIZE_LYJ::OptimizerLargeSparse optimizer;
+    //OPTIMIZE_LYJ::OptimizerLargeSparse optimizer;
+    OPTIMIZE_LYJ::OptimizeLargeSRBA optimizer;//观测多的时候不建议使用
     std::vector<std::shared_ptr<OPTIMIZE_LYJ::OptVarPose3d>> varTcws;
     std::map<int, int> varTId2Ori;
     std::map<int, int> ori2VarTInd;
-    std::map<int, std::shared_ptr<OPTIMIZE_LYJ::OptVarPoint3d>> varPoints;
-    std::map<int, int> varPId2Ori;
-    std::map<int, int> ori2VarPInd;
+    std::map<int, std::shared_ptr<OPTIMIZE_LYJ::OptVarPoint3d>> varPoints;//优化地图点原索引对应变量
+    std::map<int, int> varPId2Ori;//变量id对应原地图点id
+    std::map<int, int> ori2VarPInd;//优化地图点索引对应地图点索引
     int varId = 0;
     Eigen::Matrix<double, 3, 4> Tm;
     for (const auto& Tcw : allTcws)
@@ -323,6 +325,7 @@ void testColmapOptimize2()
         const auto& pId = colmapPoints[i].point3D_id;
         if (ori2VarPInd.count(pId) == 0)
             continue;
+        std::set<int> imgIdSet;
         uint64_t varPId = ori2VarPInd[pId];
         const auto& obs = pointsPtr[pId]->track;
         const auto& obSz = pointsPtr[pId]->track_length;
@@ -330,8 +333,9 @@ void testColmapOptimize2()
         {
             const auto& imgId = obs[j](0);
             const auto& uvId = obs[j](1);
-            if (imgId2Ind.count(imgId) == 0)
+            if (imgId2Ind.count(imgId) == 0 || imgIdSet.count(imgId) == 1)
                 continue;
+            imgIdSet.insert(imgId);
             uint64_t varTId = ori2VarTInd[imgId];
             if (!sAdded)
             {
@@ -371,6 +375,264 @@ void testColmapOptimize2()
     return;
 }
 
+void testColmapOptimize3()
+{
+    std::string imageDir = "D:/tmp/colmapData/mask2/dense/images/";
+    using namespace OPTIMIZE_LYJ;
+    std::string dataPath = "D:/tmp/colmapData/mask2/dense/sparse/";
+    std::string pth = dataPath + "0";
+    COMMON_LYJ::ColmapData colmapData;
+    colmapData.readFromColmap(pth);
+    std::vector<COMMON_LYJ::ColmapImage>& colmapImages = colmapData.images_;
+    std::vector<COMMON_LYJ::ColmapCamera>& colmapCameras = colmapData.cameras_;
+    std::vector<COMMON_LYJ::ColmapPoint>& colmapPoints = colmapData.point3Ds_;
+    int camSz = colmapData.num_cameras;
+    int imgSz = colmapData.num_reg_images;
+    int pointSz = colmapData.num_point3Ds;
+    COMMON_LYJ::PinholeCamera camera(colmapCameras[0].width, colmapCameras[0].height, colmapCameras[0].params);
+    std::vector<double> K = colmapCameras[0].params;
+
+
+    struct OptImage
+    {
+        COMMON_LYJ::Pose3D Tcw;
+        std::vector<Eigen::Vector2d>* kps;
+        COMMON_LYJ::PinholeCamera cam;
+    };
+    struct ImageMatch
+    {
+        int img1;
+        int img2;
+        std::vector<Eigen::Vector2i> matches;
+        std::vector<Eigen::Vector3d> points;
+    };
+    std::set<int> imgIds;
+    //imgIds.insert(1);
+    //imgIds.insert(30);
+    for (int i = 1; i <= imgSz; i+=5)
+        imgIds.insert(i);
+    std::vector<OptImage> optImgs;
+    std::map<int, int> imgId2Ind;
+    std::vector<ImageMatch> imgMthes;
+    for (int i = 0; i < imgSz; ++i)
+    {
+        auto& imgId = colmapImages[i].image_id;
+        if (imgIds.count(imgId) == 0)
+            continue;
+        const auto& qcw = colmapImages[i].qcw;
+        OptImage iii;
+        iii.Tcw.setR(qcw.toRotationMatrix());
+        iii.Tcw.sett(colmapImages[i].tcw);
+        iii.kps = &colmapImages[i].points2D;
+        imgId2Ind[imgId] = optImgs.size();
+        optImgs.push_back(iii);
+    }
+    std::set<int64_t> mPairs;
+    std::map<int64_t, int> pair2ind;
+    for (int i = 0; i < pointSz; ++i)
+    {
+        const auto& obs = colmapPoints[i].track;
+        for (int j = 0; j < colmapPoints[i].track_length; ++j)
+        {
+            const auto& img1 = obs[j](0);
+            if (imgIds.count(img1) == 0)
+                continue;
+            for (int k = j+1; k < colmapPoints[i].track_length; ++k)
+            {
+                const auto& img2 = obs[k](0);
+                if (img1 == img2)
+                    continue;
+                if (imgIds.count(img2) == 0)
+                    continue;
+                int64_t p = COMMON_LYJ::imagePair2Int64(img1, img2);
+                if (mPairs.count(p))
+                    continue;
+                pair2ind[p] = mPairs.size();
+                mPairs.insert(p);
+            }
+        }
+    }
+    imgMthes.resize(mPairs.size());
+    for (int i = 0; i < mPairs.size(); ++i)
+    {
+        imgMthes[i].points.reserve(pointSz);
+        imgMthes[i].matches.reserve(pointSz);
+    }
+    std::vector<Eigen::Vector3f> PwsTmp;
+    for (int i = 0; i < pointSz; ++i)
+    {
+        const auto& obs = colmapPoints[i].track;
+        auto& point = colmapPoints[i].point3D;
+        for (int j = 0; j < colmapPoints[i].track_length; ++j)
+        {
+            const auto& img1 = obs[j](0);
+            if (imgIds.count(img1) == 0)
+                continue;
+            const auto& uvId1 = obs[j](1);
+            for (int k = j + 1; k < colmapPoints[i].track_length; ++k)
+            {
+                const auto& img2 = obs[k](0);
+                const auto& uvId2 = obs[k](1);
+                if (img1 == img2)
+                    continue;
+                if (imgIds.count(img2) == 0)
+                    continue;
+                int64_t p = COMMON_LYJ::imagePair2Int64(img1, img2);
+                const auto& ind = pair2ind[p];
+                if (img1 < img2)
+                {
+                    imgMthes[ind].img1 = imgId2Ind[img1];
+                    imgMthes[ind].img2 = imgId2Ind[img2];
+                    imgMthes[ind].matches.push_back(Eigen::Vector2i(uvId1, uvId2));
+                }
+                else
+                {
+                    imgMthes[ind].img1 = imgId2Ind[img2];
+                    imgMthes[ind].img2 = imgId2Ind[img1];
+                    imgMthes[ind].matches.push_back(Eigen::Vector2i(uvId2, uvId1));
+                }
+                imgMthes[ind].points.push_back(point);
+                PwsTmp.push_back(point.cast<float>());;
+            }
+        }
+    }
+    COMMON_LYJ::BaseTriMesh btmTmp;
+    btmTmp.setVertexs(PwsTmp);
+    COMMON_LYJ::writePLYMesh("D:/tmp/OptTmp.ply", btmTmp);
+
+
+    int optImgSz = optImgs.size();
+    int imgMthSz = imgMthes.size();
+    //OPTIMIZE_LYJ::OptimizerLargeSparse optimizer;
+    OPTIMIZE_LYJ::OptimizeLargeSRBA optimizer;//观测多的时候不建议使用
+    std::vector<std::shared_ptr<OPTIMIZE_LYJ::OptVarPose3d>> varTcws;
+    std::map<int, std::shared_ptr<OPTIMIZE_LYJ::OptVarPoint3d>> varPoints;//优化地图点原索引对应变量
+    int varId = 0;
+    Eigen::Matrix<double, 3, 4> Tm;
+    for (int i=0;i<optImgSz;++i)
+    {
+        auto& optImg = optImgs[i];
+        std::shared_ptr<OptVarPose3d> p = std::make_shared<OptVarPose3d>(varId);
+        optImg.Tcw.getMatrix34d(Tm);
+        p->setData(Tm.data());
+        if (varId == 0)
+            p->setFixed(true);
+        optimizer.addVariable(p);
+        varTcws.push_back(p);
+        ++varId;
+    }
+    for (int i = 0; i < imgMthSz; ++i)
+    {
+        auto& imgMth = imgMthes[i];
+        auto& mths = imgMthes[i].matches;
+        int mSz = mths.size();
+        auto& points = imgMth.points;
+        for (int j = 0; j < mSz; ++j)
+        {
+            std::shared_ptr<OptVarPoint3d> p = std::make_shared<OptVarPoint3d>(varId);
+            p->setData(points[j].data());
+            optimizer.addVariable(p);
+            varPoints[varId - optImgSz] = p;
+            ++varId;
+        }
+    }
+
+    auto funcGenerateScaleFactor = [&](double _ob, uint64_t _vId1, uint64_t _vId2, uint64_t& _fId)
+        {
+            std::shared_ptr<OptFactorAbr<double>> factorPtr = std::make_shared<OptFactorScale_Pose3d_Point3d>(_fId);
+            OptFactorScale_Pose3d_Point3d* factor = dynamic_cast<OptFactorScale_Pose3d_Point3d*>(factorPtr.get());
+            factor->setObs(_ob);
+            std::vector<uint64_t> vIds;
+            vIds.push_back(_vId1);
+            vIds.push_back(_vId2);
+            optimizer.addFactor(factorPtr, vIds);
+            ++_fId;
+        };
+    auto funcGenerateFactor = [&](Eigen::Vector2d& _ob, uint64_t _vId1, uint64_t _vId2, uint64_t& _fId)
+        {
+            std::shared_ptr<OptFactorAbr<double>> factorPtr = std::make_shared<OptFactorUV_Pose3d_Point3d>(_fId);
+            OptFactorUV_Pose3d_Point3d* factor = dynamic_cast<OptFactorUV_Pose3d_Point3d*>(factorPtr.get());
+            factor->setObs(_ob.data(), K.data());
+            std::vector<uint64_t> vIds;
+            vIds.push_back(_vId1);
+            vIds.push_back(_vId2);
+            optimizer.addFactor(factorPtr, vIds);
+            ++_fId;
+        };
+    uint64_t fId = 0;
+    bool sAdded = false;
+    int PId = 0;
+    std::vector<Eigen::Vector3f> PwsTmp2;
+    for (int i = 0; i < imgMthSz; ++i)
+    {
+        auto& imgMth = imgMthes[i];
+        auto& mths = imgMthes[i].matches;
+        int mSz = mths.size();
+        auto& points = imgMth.points;
+        const int& imgId1 = imgMth.img1;
+        const int& imgId2 = imgMth.img2;
+        for (int j = 0; j < mSz; ++j)
+        {
+            auto& m = mths[j];
+            auto& uv1 = optImgs[imgId1].kps->at(m(0));
+            auto& uv2 = optImgs[imgId2].kps->at(m(1));
+            if (!sAdded)
+            {
+                const auto& Tcw = optImgs[imgId1].Tcw;
+                const auto& Pw = points[j];
+                Eigen::Vector3d Pc = Tcw * Pw;
+                double ss = Pc.squaredNorm();
+                funcGenerateScaleFactor(ss, imgId1, PId + optImgSz, fId);
+                sAdded = true;
+            }
+            funcGenerateFactor(uv1, imgId1, PId + optImgSz, fId);
+            funcGenerateFactor(uv2, imgId2, PId + optImgSz, fId);
+            ++PId;
+            PwsTmp2.push_back(points[j].cast<float>());;
+        }
+    }
+    COMMON_LYJ::BaseTriMesh btmTmp2;
+    btmTmp2.setVertexs(PwsTmp2);
+    COMMON_LYJ::writePLYMesh("D:/tmp/OptTmp2.ply", btmTmp2);
+
+
+    std::vector<Eigen::Vector3f> PwsBf(varId - optImgSz);
+    for (int i = 0; i < varPoints.size(); ++i)
+    {
+        int vId = varPoints[i]->getId();
+        Eigen::Vector3d p = varPoints[i]->getEigen();
+        Eigen::Vector3f pf = p.cast<float>();
+        PwsBf[i] = pf;
+    }
+    COMMON_LYJ::BaseTriMesh btmBf;
+    btmBf.setVertexs(PwsBf);
+    COMMON_LYJ::writePLYMesh("D:/tmp/OptBf.ply", btmBf);
+
+    optimizer.run();
+
+    for (int i = 0; i < varTcws.size(); ++i)
+    {
+        Eigen::Matrix<double, 3, 4> Tcw = varTcws[i]->getEigen();
+        optImgs[i].Tcw = COMMON_LYJ::Pose3D(Tcw);
+    }
+    std::vector<Eigen::Vector3f> PwsAf(varId - optImgSz, Eigen::Vector3f(0,0,0));
+    for (int i = 0; i < varPoints.size(); ++i)
+    {
+        int vId = varPoints[i]->getId();
+        Eigen::Vector3d p = varPoints[i]->getEigen();
+        Eigen::Vector3f pf = p.cast<float>();
+        if (pf.norm() > 30)
+            continue;
+        PwsAf[i] = pf;
+        if (std::isnan(PwsAf.back().norm()))
+            std::cout << "1111" << std::endl;
+    }
+    COMMON_LYJ::BaseTriMesh btmAf;
+    btmAf.setVertexs(PwsAf);
+    COMMON_LYJ::writePLYMesh("D:/tmp/OptAf.ply", btmAf);
+    return;
+}
+
 Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>> testEigenMap(double *_data)
 {
     Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>> mat(_data, 2, 3);
@@ -396,6 +658,7 @@ int main(int argc, char *argv[])
     //OPTIMIZE_LYJ::ceres_Check_UV_Pose3d_Line3d();
      //main3();
     //testColmapOptimize();
-    testColmapOptimize2();
+    //testColmapOptimize2();
+    testColmapOptimize3();
     return 0;
 }

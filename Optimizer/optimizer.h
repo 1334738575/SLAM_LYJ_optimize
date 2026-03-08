@@ -78,7 +78,17 @@ namespace OPTIMIZE_LYJ
 
 			int getEDim() const { return m_err.rows(); }
 
-
+			void print()
+			{
+				std::cout << "f" << m_id << std::endl;
+				int cSz = m_f2vs.size();
+				for (int i = 0; i < cSz; ++i)
+				{
+					std::cout << m_f2vs.connectId(i) << std::endl;
+					std::cout << m_jacs[i] << std::endl;
+				}
+				std::cout << m_err << std::endl;
+			}
 		//private:
 			uint64_t m_id;
 			//std::shared_ptr<OptFactorAbr<double>> m_factor = nullptr;
@@ -91,6 +101,9 @@ namespace OPTIMIZE_LYJ
 		class EliminationMat
 		{
 		public:
+			EliminationMat(OptVarType _eliminationType, uint64_t _vId)
+				:m_eliminationType(_eliminationType), m_vId(_vId)
+			{}
 			EliminationMat(const std::vector<FactorMat*>& _fMatsIn, OptVarType _eliminationType, uint64_t _vId)
 				:m_fMatsIn(_fMatsIn), m_eliminationType(_eliminationType), m_vId(_vId)
 			{}
@@ -125,10 +138,11 @@ namespace OPTIMIZE_LYJ
 						int vId = f2vs.connectId(j);
 						if (m_vId == vId)
 						{
-							varEliminate = vars[i];
+							varEliminate = vars[j];
 							continue;
 						}
-						vIdMaps[vId] = vars[i];
+						vIdMaps[vId] = vars[j];
+						continue;
 					}
 				}
 				int remandSz = vIdMaps.size();
@@ -198,14 +212,28 @@ namespace OPTIMIZE_LYJ
 					err1.block(sr, 0, er - sr, 1) = err;
 				}
 
+				//for (int i = 0; i < iSz; ++i)
+				//{
+				//	m_fMatsIn[i]->print();
+				//}
+				//std::cout << "jac1" << std::endl;
+				//std::cout << jac1 << std::endl;
+				//std::cout << "jac2" << std::endl;
+				//std::cout << jac2 << std::endl;
+				//std::cout << "err1" << std::endl;
+				//std::cout << err1 << std::endl;
 				Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(jac2);
 				// 获取 Q、R 和列置换索引（pivots）
 				Eigen::MatrixXd Qt = qr.householderQ().transpose();
-				//Eigen::MatrixXd R = qr.matrixQR().triangularView<Eigen::Upper>();
-				//Eigen::VectorXi pivots = qr.colsPermutation().indices(); // 列置换索引
 				Eigen::MatrixXd Qtjac1 = Qt * jac1;
 				Eigen::MatrixXd Qtjac2 = Qt * jac2;
 				Eigen::VectorXd Qterr1 = Qt * err1;
+				//std::cout << "Qtjac1" << std::endl;
+				//std::cout << Qtjac1 << std::endl;
+				//std::cout << "Qtjac2" << std::endl;
+				//std::cout << Qtjac2 << std::endl;
+				//std::cout << "Qterr1" << std::endl;
+				//std::cout << Qterr1 << std::endl;
 
 				for (int i = 0; i < remandSz; ++i)
 				{
@@ -224,6 +252,9 @@ namespace OPTIMIZE_LYJ
 					jacsRemand[i] = Qtjac1.block(cols2, sc, rows2, ec - sc);
 				}
 				errRemand = Qterr1.block(cols2, 0, rows2, 1);
+				//m_factorMatRemand->print();
+				//m_factorMatEliminate.print();
+				return;
 			}
 			void solveElimination(std::vector<Eigen::Map<Eigen::VectorXd>> _dXs)
 			{
@@ -241,17 +272,44 @@ namespace OPTIMIZE_LYJ
 						ind = i;
 						continue;
 					}
-					err += (jacs[i] * _dXs[i]);
+					err -= (jacs[i] * _dXs[i]);
 				}
-				Eigen::VectorXd dX = jacs[ind].inverse() * err;
-				vars[ind]->update(dX.data());
+				if (false)
+				{
+					Eigen::VectorXd dX = -1 * jacs[ind].inverse() * err;
+					vars[ind]->update(dX.data());
+				}
+				else
+				{
+					Eigen::MatrixXd A = jacs[ind].transpose() * jacs[ind];
+					Eigen::VectorXd B = -1 * jacs[ind].transpose() * err;
+					Eigen::LDLT<Eigen::MatrixXd> solver;
+					solver.compute(A);
+					if (solver.info() != Eigen::Success)
+					{
+						std::cerr << "Decomposition failed2!" << std::endl;
+						return;
+					}
+					//std::cout << m_A.rows() << " " << m_A.cols() << std::endl;
+					//std::cout << m_B.rows() << std::endl;
+					//std::cout << m_B.cols() << std::endl;
+
+					Eigen::VectorXd dX = solver.solve(B);
+					if (solver.info() != Eigen::Success)
+					{
+						std::cerr << "Solving failed!" << std::endl;
+						return;
+					}
+					vars[ind]->update(dX.data());
+					return;
+				}
 			}
 
 			std::vector<FactorMat*> m_fMatsIn;
 			OptVarType m_eliminationType;
 			uint64_t m_vId;
 		//private:
-			FactorMat* m_factorMatRemand;
+			FactorMat* m_factorMatRemand = nullptr;
 			FactorMat m_factorMatEliminate;
 		};
 

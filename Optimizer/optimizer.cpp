@@ -366,15 +366,11 @@ namespace OPTIMIZE_LYJ
     {}
     bool OptimizeLargeSRBA::init()
     {
-        m_vars.clear();
-        m_var2Factors.clear();
-        m_factors.clear();
-        m_factor2Vars.clear();
-        m_factorMats.clear();
-        m_eliminationMats.clear();
+        //m_vars.clear();
+        //m_var2Factors.clear();
+        //m_factors.clear();
+        //m_factor2Vars.clear();
         m_eliminationType.clear();
-        m_cLocs.clear();
-        m_rLocs.clear();
         for (int i = 0; i < m_vars.size(); ++i)
         {
             const auto& t = m_vars[i]->getType();
@@ -386,14 +382,30 @@ namespace OPTIMIZE_LYJ
     }
     bool OptimizeLargeSRBA::generateAB(double &_err)
     {
+        m_factorMats.clear();
+        m_eliminationMats.clear();
+        m_cLocs.clear();
+        m_rLocs.clear();
+        int vSz = m_vars.size();
+        int fSz = m_factors.size();
+
+        int incCnt = 0;
+        for (int i = 0; i < vSz; ++i)
+        {
+            const auto& t = m_vars[i]->getType();
+            const int& vId = m_vars[i]->getId();
+            if (m_eliminationType.count(t))
+                ++incCnt;
+        }
+
         auto funcCalFactorMats = [&]()->bool
             {
-                m_factorMats.resize(m_factors.size());
+                m_factorMats.resize(fSz + incCnt);
                 int connectCnt = 0;
                 std::vector<OptVarAbr<double>*> vars;
                 std::vector<double*> jacPtrs;
                 int tanDim, eDim;
-                for (int i = 0; i < this->m_factors.size(); ++i)
+                for (int i = 0; i < fSz; ++i)
                 {
                     auto factor = this->m_factors[i];
                     if (!factor->isEnable())
@@ -430,8 +442,6 @@ namespace OPTIMIZE_LYJ
             };
         funcCalFactorMats();
 
-        int vSz = m_vars.size();
-        int fSz = m_factors.size();
         int cols = 0;
         m_cLocs.resize(vSz + 1, 0);
         std::vector<FactorMat*> fMatsTmp;
@@ -450,18 +460,24 @@ namespace OPTIMIZE_LYJ
                 //new factor
                 Var2Factor v2fs = m_var2Factors[vId];
                 int cSz = v2fs.size();
+                m_eliminationMats.emplace_back(t, vId);
+                auto& fMatsIn = m_eliminationMats.back().m_fMatsIn;
+                fMatsIn.resize(cSz);
                 for (int j = 0; j < cSz; ++j)
                 {
                     const auto& fId = v2fs.connectId(j);
-                    FactorMat* fMat = &m_factorMats[fId];
-                    fMatsTmp.push_back(fMat);
-                    fMat->m_valid = false;
+                    //FactorMat* fMat = &m_factorMats[fId];
+                    //fMatsTmp.push_back(fMat);
+                    //fMat->m_valid = false;
+                    //fMatsIn.push_back(&m_factorMats[fId]);
+                    //fMatsIn.back()->m_valid = false;
+                    fMatsIn[j] = &m_factorMats[fId];
+                    fMatsIn[j]->m_valid = false;
                 }
-                m_eliminationMats.emplace_back(fMatsTmp, t, vId);
-                fMatTmp.m_id = m_factorMats.size();
-                m_factorMats.push_back(fMatTmp);
-                m_eliminationMats.back().m_factorMatRemand = &m_factorMats.back();
-                continue;
+                //m_eliminationMats.emplace_back(fMatsTmp, t, vId);
+                //fMatTmp.m_id = m_factorMats.size();
+                //m_factorMats.push_back(fMatTmp);
+                //m_eliminationMats.back().m_factorMatRemand = &m_factorMats.back();
             }
             else
             {
@@ -470,13 +486,16 @@ namespace OPTIMIZE_LYJ
             m_cLocs[i + 1] = cols;
         }
 
-        int fSzNew = m_factorMats.size();
-        for (int i = 0; i < fSzNew - fSz; ++i)
+        int incSz = m_eliminationMats.size();
+        for (int i = 0; i < incSz; ++i)
         {
+            m_factorMats[fSz + i].m_id = fSz + i;
+            m_eliminationMats[i].m_factorMatRemand = &m_factorMats[fSz + i];
             m_eliminationMats[i].QR();
         }
 
-        m_rLocs.resize(fSzNew, 0);
+        int fSzNew = m_factorMats.size();
+        m_rLocs.resize(fSzNew + 1, 0);
         int rows = 0;
         for (int i = 0; i < fSzNew; ++i)
         {
@@ -539,6 +558,9 @@ namespace OPTIMIZE_LYJ
             std::cerr << "Decomposition failed!" << std::endl;
             return false;
         }
+        //std::cout << m_A.rows() << " " << m_A.cols() << std::endl;
+        //std::cout << m_B.rows() << std::endl;
+        //std::cout << m_B.cols() << std::endl;
 
         //Eigen::MatrixXd A(m_A);
         //// 2. 创建自伴随（实对称）特征值求解器，计算特征值和特征向量
