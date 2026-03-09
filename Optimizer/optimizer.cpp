@@ -589,12 +589,18 @@ namespace OPTIMIZE_LYJ
     }
     bool OptimizeLargeSRBA::updateX()
     {
+        std::map<int, Eigen::VectorXd> fixedDetXs;
         for (int i = 0; i < this->m_vars.size(); ++i)
         {
             int sc = m_cLocs[i];
             int ec = m_cLocs[i + 1];
             if (sc == ec)
+            {
+                int vDim = m_vars[i]->getTangentDim();
+                fixedDetXs[m_vars[i]->getId()].resize(vDim);
+                fixedDetXs[m_vars[i]->getId()].setZero();
                 continue;
+            }
             auto var = this->m_vars[i];
             double* detXPtr = this->m_DetX.data() + sc;
             var->update(detXPtr);
@@ -616,6 +622,12 @@ namespace OPTIMIZE_LYJ
             for (int j = 0; j < cSz; ++j)
             {
                 const auto& vId = f2vs.connectId(j);
+                if (m_vars[vId]->isFixed())
+                {
+                    Eigen::Map<Eigen::VectorXd> dX(fixedDetXs[vId].data(), fixedDetXs[vId].rows());
+                    dXs.push_back(dX);
+                    continue;
+                }
                 if (vId == vIdEli)
                 {
                     Eigen::Map<Eigen::VectorXd> dX(dXEli.data(), eliDim);

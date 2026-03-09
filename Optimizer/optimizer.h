@@ -274,12 +274,6 @@ namespace OPTIMIZE_LYJ
 					}
 					err -= (jacs[i] * _dXs[i]);
 				}
-				if (false)
-				{
-					Eigen::VectorXd dX = -1 * jacs[ind].inverse() * err;
-					vars[ind]->update(dX.data());
-				}
-				else
 				{
 					Eigen::MatrixXd A = jacs[ind].transpose() * jacs[ind];
 					Eigen::VectorXd B = -1 * jacs[ind].transpose() * err;
