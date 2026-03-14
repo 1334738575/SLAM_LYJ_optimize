@@ -118,12 +118,29 @@ namespace OPTIMIZE_LYJ
 
 		virtual bool updateX() = 0;
 
-		virtual bool isFinish(const int _i, const T _err)
+		virtual bool isFinish(const int _i, const double _err)
 		{
-			double detErr = std::abs(m_lastErr - _err);
-			m_lastErr = _err;
+			double detErr = static_cast<double>(std::abs(m_lastErr - _err));
 			std::cout << "iter: " << _i << ", err: " << _err << std::endl;
-			if (_err <= m_minErrTh || _i >= m_maxIterNum || detErr < 1e-6)
+			if (m_lastErr < _err)
+			{
+				if (m_lastDown)
+					++m_vibration;
+				else
+					m_vibration = 0;
+				m_lastDown = false;
+				++m_errIncCnt;
+			}
+			else
+			{
+				if (!m_lastDown)
+					++m_vibration;
+				else
+					m_vibration = 0;
+				m_lastDown = true;
+			}
+			m_lastErr = _err;
+			if (_err <= m_minErrTh || _i >= m_maxIterNum || detErr < 1e-6 || m_errIncCnt > 2 || m_vibration > 2)
 				return true;
 			return false;
 		}
@@ -162,7 +179,10 @@ namespace OPTIMIZE_LYJ
 		int m_maxIterNum = 30;
 		int m_curIter = 0;
 		T m_minErrTh = 1e-6;
-		T m_lastErr = -1;
+		T m_lastErr = 1e6;
+		int m_errIncCnt = 0;
+		bool m_lastDown = true;
+		int m_vibration = 0;
 
 		std::vector<std::shared_ptr<OptVarAbr<T>>> m_vars;
 		std::map<uint64_t, Var2Factor> m_var2Factors;

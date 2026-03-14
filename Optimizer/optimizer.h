@@ -256,10 +256,162 @@ namespace OPTIMIZE_LYJ
 				//m_factorMatEliminate.print();
 				return;
 			}
+			// 非位姿jac，QR分解，变换位姿jac
+			void QR2()
+			{
+				auto& jacsRemand = m_factorMatRemand->m_jacs;
+				auto& errRemand = m_factorMatRemand->m_err;
+				auto& f2vsRemand = m_factorMatRemand->m_f2vs;
+				auto& varsRemand = m_factorMatRemand->m_vars;
+				int iSz = m_fMatsIn.size();
+				std::map<uint64_t, OptVarAbr<double>*> vIdMaps;
+				const auto& vIdEliminate = m_vId;
+				OptVarAbr<double>* varEliminate;
+				int rows = 0;
+				std::vector<int> rLocs(iSz + 1, 0);
+				for (int i = 0; i < iSz; ++i)
+				{
+					const auto& f2vs = m_fMatsIn[i]->m_f2vs;
+					const auto& vars = m_fMatsIn[i]->m_vars;
+					int cSz = f2vs.size();
+					rows += m_fMatsIn[i]->m_err.rows();
+					rLocs[i + 1] = rows;
+					for (int j = 0; j < cSz; ++j)
+					{
+						int vId = f2vs.connectId(j);
+						if (m_vId == vId)
+						{
+							varEliminate = vars[j];
+							continue;
+						}
+						vIdMaps[vId] = vars[j];
+						continue;
+					}
+				}
+				int remandSz = vIdMaps.size();
+				jacsRemand.resize(remandSz + 1);
+				std::vector<uint64_t> vIdsRemand(remandSz + 1);
+				varsRemand.resize(remandSz + 1);
+				int ind = 0;
+				std::map<uint64_t, int> id2Loc;
+				int cols = 0;
+				std::vector<int> cLocs(remandSz + 2, 0);
+				for (auto& vIdMap : vIdMaps)
+				{
+					const auto& vId = vIdMap.first;
+					auto& var = vIdMap.second;
+					vIdsRemand[ind] = vId;
+					varsRemand[ind] = var;
+					int vDim = var->getTangentDim();
+					id2Loc[vId] = ind;
+					++ind;
+					cols += vDim;
+					cLocs[ind] = cols;
+				}
+				vIdsRemand[ind] = m_vId;
+				varsRemand[ind] = varEliminate;
+				++ind;
+				int vDim = varEliminate->getTangentDim();
+				cols += vDim;
+				cLocs[ind] = cols;
+				f2vsRemand = Factor2Var(vIdsRemand);
+
+				Eigen::MatrixXd jac1;
+				jac1.resize(rows, cols);
+				jac1.setZero();
+				int cols2 = varEliminate->getTangentDim();
+				Eigen::MatrixXd jac2;
+				jac2.resize(rows, cols2);
+				jac2.setZero();
+				Eigen::VectorXd err1;
+				err1.resize(rows);
+				err1.setZero();
+				for (int i = 0; i < iSz; ++i)
+				{
+					auto& jacs = m_fMatsIn[i]->m_jacs;
+					const auto& f2vs = m_fMatsIn[i]->m_f2vs;
+					auto& err = m_fMatsIn[i]->m_err;
+					int cSz = f2vs.size();
+					int sr = rLocs[i];
+					int er = rLocs[i + 1];
+					for (int j = 0; j < cSz; ++j)
+					{
+						int vId = f2vs.connectId(j);
+						auto& jac = jacs[j];
+						int sc, ec;
+						if (m_vId == vId)
+						{
+							sc = 0;
+							ec = cols2;
+							jac2.block(sr, sc, er - sr, ec - sc) = jac;
+						}
+						else
+						{
+							int loc = id2Loc[vId];
+							sc = cLocs[loc];
+							ec = cLocs[loc + 1];
+							jac1.block(sr, sc, er - sr, ec - sc) = jac;
+						}
+					}
+					err1.block(sr, 0, er - sr, 1) = err;
+				}
+
+				//for (int i = 0; i < iSz; ++i)
+				//{
+				//	m_fMatsIn[i]->print();
+				//}
+				//std::cout << "jac1" << std::endl;
+				//std::cout << jac1 << std::endl;
+				//std::cout << "jac2" << std::endl;
+				//std::cout << jac2 << std::endl;
+				//std::cout << "err1" << std::endl;
+				//std::cout << err1 << std::endl;
+				Eigen::HouseholderQR<Eigen::MatrixXd> qr(jac2);
+				// 获取 Q、R 和列置换索引（pivots）
+				Eigen::MatrixXd Qt = qr.householderQ().transpose();
+				Eigen::MatrixXd Qtjac1 = Qt * jac1;
+				Eigen::MatrixXd Qtjac2 = Qt * jac2;
+				Eigen::VectorXd Qterr1 = Qt * err1;
+				//Eigen::MatrixXd Qtjac1 = jac1;
+				//Eigen::MatrixXd Qtjac2 = jac2;
+				//Eigen::VectorXd Qterr1 = err1;
+				//std::cout << "Qtjac1" << std::endl;
+				//std::cout << Qtjac1 << std::endl;
+				//std::cout << "Qtjac2" << std::endl;
+				//std::cout << Qtjac2 << std::endl;
+				//std::cout << "Qterr1" << std::endl;
+				//std::cout << Qterr1 << std::endl;
+				//Eigen::MatrixXd R = qr.matrixQR().triangularView<Eigen::Upper>();
+				//Eigen::MatrixXd QR = qr.matrixQR();
+				//Eigen::MatrixXd Q = qr.householderQ();
+				//Eigen::MatrixXd QtQ = Qt.transpose() * Qt;
+				//std::cout << R << std::endl << std::endl;
+				//std::cout << QR << std::endl << std::endl;
+				//std::cout << Q << std::endl << std::endl;
+				//std::cout << Q.transpose() - Q.inverse() << std::endl << std::endl;
+				//std::cout << Q * R << std::endl << std::endl;
+				//std::cout << jac2 << std::endl << std::endl;
+				//std::cout << QtQ << std::endl << std::endl;
+
+				int rows2 = rows;
+				for (int i = 0; i < remandSz; ++i)
+				{
+					int sc = cLocs[i];
+					int ec = cLocs[i + 1];
+					jacsRemand[i] = Qtjac1.block(0, sc, rows2, ec - sc);
+				}
+				jacsRemand[remandSz] = Qtjac2;
+				errRemand = Qterr1.block(0, 0, rows2, 1);
+				//m_factorMatRemand->print();
+				//m_factorMatEliminate.print();
+				return;
+			}
 			void solveElimination(std::vector<Eigen::Map<Eigen::VectorXd>> _dXs)
 			{
 				const auto& f2vs = m_factorMatEliminate.m_f2vs;
 				int cSz = f2vs.size();
+				if (cSz == 0)
+					return;
 				const auto& jacs = m_factorMatEliminate.m_jacs;
 				Eigen::VectorXd err = m_factorMatEliminate.m_err;
 				const auto& vars = m_factorMatEliminate.m_vars;
@@ -272,31 +424,13 @@ namespace OPTIMIZE_LYJ
 						ind = i;
 						continue;
 					}
-					err -= (jacs[i] * _dXs[i]);
+					err += (jacs[i] * _dXs[i]);
 				}
-				{
-					Eigen::MatrixXd A = jacs[ind].transpose() * jacs[ind];
-					Eigen::VectorXd B = -1 * jacs[ind].transpose() * err;
-					Eigen::LDLT<Eigen::MatrixXd> solver;
-					solver.compute(A);
-					if (solver.info() != Eigen::Success)
-					{
-						std::cerr << "Decomposition failed2!" << std::endl;
-						return;
-					}
-					//std::cout << m_A.rows() << " " << m_A.cols() << std::endl;
-					//std::cout << m_B.rows() << std::endl;
-					//std::cout << m_B.cols() << std::endl;
-
-					Eigen::VectorXd dX = solver.solve(B);
-					if (solver.info() != Eigen::Success)
-					{
-						std::cerr << "Solving failed!" << std::endl;
-						return;
-					}
-					vars[ind]->update(dX.data());
+				Eigen::VectorXd dX = -1 * jacs[ind].inverse() * err;
+				if (std::isnan(dX.sum()) || std::isinf(dX.sum()))
 					return;
-				}
+				vars[ind]->update(dX.data());
+				return;
 			}
 
 			std::vector<FactorMat*> m_fMatsIn;
@@ -316,7 +450,6 @@ namespace OPTIMIZE_LYJ
 		bool solveDetX() override;
 
 		bool updateX() override;
-
 	private:
 		Eigen::SparseMatrix<double> m_A;
 		Eigen::VectorXd m_B;

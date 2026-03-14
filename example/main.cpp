@@ -328,9 +328,9 @@ void showMatch(COMMON_LYJ::ColmapData& _colmapData, int _ind1, int _ind2, std::s
 }
 void testColmapOptimize2()
 {
-    std::string imageDir = "D:/tmp/colmapData/mask/dense/images/";
+    std::string imageDir = "D:/tmp/colmapData/mask2/dense/images/";
     using namespace OPTIMIZE_LYJ;
-    std::string dataPath = "D:/tmp/colmapData/mask/dense/sparse/";
+    std::string dataPath = "D:/tmp/colmapData/mask2/dense/sparse/";
     std::string pth = dataPath + "0";
     COMMON_LYJ::ColmapData colmapData;
     colmapData.readFromColmap(pth);
@@ -672,7 +672,7 @@ void optimizeByTwo(std::vector<double>& K, std::vector<OptImage>& optImgs, std::
         int vId = varPoints[i]->getId();
         Eigen::Vector3d p = varPoints[i]->getEigen();
         Eigen::Vector3f pf = p.cast<float>();
-        if (pf.norm() > 30)
+        if (pf.norm() > 1e6)
             continue;
         PwsAf[i] = pf;
         if (std::isnan(PwsAf.back().norm()))
@@ -680,6 +680,12 @@ void optimizeByTwo(std::vector<double>& K, std::vector<OptImage>& optImgs, std::
     }
     COMMON_LYJ::BaseTriMesh btmAf;
     btmAf.setVertexs(PwsAf);
+    const auto& ppps = btmAf.getVertexs();
+    for (int i = 0; i < btmAf.getVn(); ++i)
+    {
+        if(std::isnan(ppps[i].sum()))
+            std::cout << "2222" << std::endl;
+    }
     COMMON_LYJ::writePLYMesh("D:/tmp/OptAf.ply", btmAf);
 }
 void testColmapOptimize3()
@@ -832,7 +838,8 @@ void testOptimizeTwo()
     for (int i = 0; i < imgSz; ++i)
     {
         //optImgs[i].Tcw = COMMON_LYJ::Pose3D(camera_poses[i].R, camera_poses[i].t);
-        optImgs[i].Tcw = COMMON_LYJ::Pose3D(camera_poses[i].R, camera_poses[i].t + Eigen::Vector3d(i * 0.01, i * -0.01, i * 0.1));
+        Eigen::Vector3d pTmp = camera_poses[i].t + Eigen::Vector3d(i * 0.01, i * -0.01, i * 0.1);
+        optImgs[i].Tcw = COMMON_LYJ::Pose3D(camera_poses[i].R, pTmp);
         optImgs[i].kps = &kps[i];
     }
     std::vector<std::vector<Eigen::Vector2i>> pointObs(pointSz);
@@ -881,7 +888,8 @@ void testOptimizeTwo()
         if (obs.size() < 2)
             continue;
         //auto& point = map_points[i].pos;
-        auto& point = map_points[i].pos + Eigen::Vector3d(i * 0.001, i * -0.001, i * 0.001);
+        Eigen::Vector3d pTmp = Eigen::Vector3d(i * 0.001, i * -0.001, i * 0.001);
+        Eigen::Vector3d point = map_points[i].pos + pTmp;
         for (int j = 0; j < obs.size(); ++j)
         {
             const auto& img1 = obs[j](0);
@@ -907,7 +915,7 @@ void testOptimizeTwo()
                     imgMthes[ind].matches.push_back(Eigen::Vector2i(uvId2, uvId1));
                 }
                 imgMthes[ind].points.push_back(point);
-                PwsTmp.push_back(point.cast<float>());;
+                PwsTmp.push_back(map_points[i].pos.cast<float>());;
             }
         }
     }
@@ -945,8 +953,8 @@ int main(int argc, char *argv[])
     //OPTIMIZE_LYJ::ceres_Check_UV_Pose3d_Line3d();
      //main3();
     //testColmapOptimize();
-    //testColmapOptimize2();
+    testColmapOptimize2();
     //testColmapOptimize3();
-    testOptimizeTwo();
+    //testOptimizeTwo();
     return 0;
 }

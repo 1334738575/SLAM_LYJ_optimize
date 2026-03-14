@@ -18,8 +18,11 @@ namespace OPTIMIZE_LYJ
         // Í¨¹ý OptVar ¼Ì³Ð
         bool update(double *_detX) override
         {
-            if (std::isnan(_detX[0]) || std::isnan(_detX[1]) || std::isnan(_detX[2]))
+            if (std::isnan(_detX[0]) || std::isnan(_detX[1]) || std::isnan(_detX[2])
+                || std::isinf(_detX[0]) || std::isinf(_detX[1]) || std::isinf(_detX[2])
+                )
             {
+                return false;
                 std::cout << _detX[0] << " " << _detX[1] << " " << _detX[2] << std::endl;
                 // std::cout << "OptVarPoint3d update error: detX contains NaN!" << std::endl;
                 // return false;

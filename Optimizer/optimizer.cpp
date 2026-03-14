@@ -3,6 +3,8 @@
 #include <Eigen/Sparse>
 #include <Eigen/SparseLU>
 
+#include <fstream>
+
 namespace OPTIMIZE_LYJ
 {
 
@@ -234,6 +236,8 @@ namespace OPTIMIZE_LYJ
         std::vector<Eigen::MatrixXd> jacs;
         std::vector<double *> jacPtrs;
         int tanDim, eDim;
+        _err = 0;
+        int errCnt = 0;
         for (int i = 0; i < this->m_factors.size(); ++i)
         {
             auto factor = this->m_factors[i];
@@ -269,6 +273,9 @@ namespace OPTIMIZE_LYJ
 
             double *errPtr = Err.data() + fLoc;
             factor->calculateErrAndJac(errPtr, jacPtrs.data(), 1, vars.data());
+            Eigen::Map<Eigen::VectorXd> errMap(Err.data() + fLoc, eDim);
+            _err += errMap.norm();
+            ++errCnt;
 
             for (int j = 0; j < connectCnt; ++j)
             {
@@ -288,14 +295,17 @@ namespace OPTIMIZE_LYJ
                 }
             }
         }
+        _err /= errCnt;
 
         Jac.setFromTriplets(tripletLists.begin(), tripletLists.end());
         m_A = Jac.transpose() * Jac;
         m_B = -1 * Jac.transpose() * Err;
-        _err = 0;
-        for (int i = 0; i < Err.rows(); ++i)
-            _err += std::abs(Err(i));
-        _err /= Err.rows();
+        //for (int i = 0; i < Err.rows(); ++i)
+        //    _err += std::abs(Err(i));
+        //_err /= Err.rows();
+        //for (int i = 0; i < m_B.rows(); ++i)
+        //    _err += std::abs(m_B(i));
+        //_err /= m_B.rows();
 
         return true;
     }
@@ -311,6 +321,17 @@ namespace OPTIMIZE_LYJ
         }
 
         //Eigen::MatrixXd A(m_A);
+        //std::ofstream f("D:/tmp/A2.txt");
+        //f << A.rows() << std::endl;
+        //f << A.cols() << std::endl;
+        //f << A << std::endl;
+        //f.close();
+        //Eigen::MatrixXd B(m_B);
+        //std::ofstream f2("D:/tmp/B2.txt");
+        //f2 << B.rows() << std::endl;
+        //f2 << B.cols() << std::endl;
+        //f2 << B << std::endl;
+        //f2.close();
         //// 2. 创建自伴随（实对称）特征值求解器，计算特征值和特征向量
         //Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(A);
         //// 检查求解是否成功
@@ -382,6 +403,7 @@ namespace OPTIMIZE_LYJ
     }
     bool OptimizeLargeSRBA::generateAB(double &_err)
     {
+        bool useSR = true;
         m_factorMats.clear();
         m_eliminationMats.clear();
         m_cLocs.clear();
@@ -398,6 +420,8 @@ namespace OPTIMIZE_LYJ
                 ++incCnt;
         }
 
+        _err = 0;
+        int errCnt = 0;
         auto funcCalFactorMats = [&]()->bool
             {
                 m_factorMats.resize(fSz + incCnt);
@@ -437,10 +461,13 @@ namespace OPTIMIZE_LYJ
                     m_factorMats[i].m_vars = vars;
                     double* errPtr = m_factorMats[i].m_err.data();
                     factor->calculateErrAndJac(errPtr, jacPtrs.data(), 1, vars.data());
+                    _err += m_factorMats[i].m_err.norm();
+                    ++errCnt;
                 }
                 return true;
             };
         funcCalFactorMats();
+        _err /= errCnt;
 
         int cols = 0;
         m_cLocs.resize(vSz + 1, 0);
@@ -478,6 +505,8 @@ namespace OPTIMIZE_LYJ
                 //fMatTmp.m_id = m_factorMats.size();
                 //m_factorMats.push_back(fMatTmp);
                 //m_eliminationMats.back().m_factorMatRemand = &m_factorMats.back();
+                if(!useSR)
+                    cols += m_vars[i]->getTangentDim();
             }
             else
             {
@@ -491,7 +520,10 @@ namespace OPTIMIZE_LYJ
         {
             m_factorMats[fSz + i].m_id = fSz + i;
             m_eliminationMats[i].m_factorMatRemand = &m_factorMats[fSz + i];
-            m_eliminationMats[i].QR();
+            if(!useSR)
+                m_eliminationMats[i].QR2();
+            else
+                m_eliminationMats[i].QR();
         }
 
         int fSzNew = m_factorMats.size();
@@ -538,14 +570,25 @@ namespace OPTIMIZE_LYJ
             }
         }
 
-
         Jac.setFromTriplets(tripletLists.begin(), tripletLists.end());
         m_A = Jac.transpose() * Jac;
         m_B = -1 * Jac.transpose() * Err;
-        _err = 0;
-        for (int i = 0; i < Err.rows(); ++i)
-            _err += std::abs(Err(i));
-        _err /= Err.rows();
+        //for (int i = 0; i < Err.rows(); ++i)
+        //    _err += std::abs(Err(i));
+        //_err /= Err.rows();
+        //for (int i = 0; i < m_B.rows(); ++i)
+        //    _err += std::abs(m_B(i));
+        //_err /= m_B.rows();
+        //Eigen::MatrixXd J(Jac);
+        //std::ofstream f2("D:/tmp/j1.txt");
+        //f2 << J.rows() << std::endl;
+        //f2 << J.cols() << std::endl;
+        //f2 << J << std::endl;
+        //f2.close();
+        //std::ofstream f("D:/tmp/e1.txt");
+        //f << Err.rows() << std::endl;
+        //f << Err << std::endl;
+        //f.close();
         return true;
     }
     bool OptimizeLargeSRBA::solveDetX()
@@ -563,6 +606,17 @@ namespace OPTIMIZE_LYJ
         //std::cout << m_B.cols() << std::endl;
 
         //Eigen::MatrixXd A(m_A);
+        //std::ofstream f("D:/tmp/A1.txt");
+        //f << A.rows() << std::endl;
+        //f << A.cols() << std::endl;
+        //f << A << std::endl;
+        //f.close();
+        //Eigen::MatrixXd B(m_B);
+        //std::ofstream f2("D:/tmp/B1.txt");
+        //f2 << B.rows() << std::endl;
+        //f2 << B.cols() << std::endl;
+        //f2 << B << std::endl;
+        //f2.close();
         //// 2. 创建自伴随（实对称）特征值求解器，计算特征值和特征向量
         //Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(A);
         //// 检查求解是否成功
