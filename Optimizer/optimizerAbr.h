@@ -174,7 +174,7 @@ namespace OPTIMIZE_LYJ
 			return isEnable;
 		}
 		inline void setMaxIter(int _maxIter) { m_maxIterNum = _maxIter; }
-
+		inline T getError() { return m_lastErr; }
 	protected:
 		int m_maxIterNum = 30;
 		int m_curIter = 0;

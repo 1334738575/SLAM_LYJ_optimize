@@ -277,8 +277,9 @@ namespace OPTIMIZE_LYJ
             OPTIMIZE_BASE_TWC::cal_jac_errPlane_Pw(planew, Pw, err, jacPlanew_Pw);
 
             memcpy(_err, &err, sizeof(double));
-            if (_jac[0])
+            if (_jac[0]) {
                 memcpy(_jac[0], jacPlanew_Pw.data(), sizeof(double) * 3);
+            }
             return true;
         }
 

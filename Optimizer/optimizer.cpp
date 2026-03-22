@@ -295,7 +295,11 @@ namespace OPTIMIZE_LYJ
                 }
             }
         }
+        if (std::isnan(_err) || std::isinf(_err))
+            std::cout << "nan or inf" << std::endl;
         _err /= errCnt;
+        if (errCnt == 0)
+            std::cout << "cnt is 0" << std::endl;
 
         Jac.setFromTriplets(tripletLists.begin(), tripletLists.end());
         m_A = Jac.transpose() * Jac;

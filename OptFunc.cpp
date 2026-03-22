@@ -842,6 +842,8 @@ namespace OPTIMIZE_LYJ
         {
             err = planew(0) * Pw(0) + planew(1) * Pw(1) + planew(2) * Pw(2) + planew(3);
             jac = planew.head(3);
+            if (std::isnan(err) || std::isinf(err))
+                std::cout << "nan or inf" << std::endl;
         }
 
         OPTIMIZE_LYJ_API void cal_jac_errL_Pw(const v3d& LPw, const v3d& dirw, const v3d& Pw, v3d& err, m33& jac)

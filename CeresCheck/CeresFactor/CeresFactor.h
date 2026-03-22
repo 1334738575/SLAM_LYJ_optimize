@@ -9,7 +9,8 @@
 
 struct CeresAutoFactorUV
 {
-	const Eigen::Vector2d& ob_;
+	//const Eigen::Vector2d& ob_;
+	const Eigen::Vector2d ob_;
 	const Eigen::Matrix3d& K_;
 	double w_ = 1;
 	CeresAutoFactorUV(const Eigen::Vector2d& _ob, const Eigen::Matrix3d& _K, double _w=1)
@@ -34,13 +35,17 @@ struct CeresAutoFactorUV
 		_residual[0] = T(w_) * (T(ob_(0)) - uv[0]);
 		_residual[1] = T(w_) * (T(ob_(1)) - uv[1]);
 
+		//std::cout << _residual[0] << std::endl;
+		//std::cout << _residual[1] << std::endl;
+
 		return true;
 	}
 };
 
 struct CeresAutoFactorUVGScale
 {
-	const Eigen::Vector2d& ob_;
+	//const Eigen::Vector2d& ob_;
+	const Eigen::Vector2d ob_;
 	const Eigen::Matrix3d& K_;
 	double w_ = 1;
 	CeresAutoFactorUVGScale(const Eigen::Vector2d& _ob, const Eigen::Matrix3d& _K, double _w = 1)
@@ -72,9 +77,11 @@ struct CeresAutoFactorUVGScale
 
 struct CeresAutoFactorStereoUVGScale
 {
-	const Eigen::Vector2d& obl_;
+	//const Eigen::Vector2d& obl_;
+	const Eigen::Vector2d obl_;
 	const Eigen::Matrix3d& Kl_;
-	const Eigen::Vector2d& obr_;
+	//const Eigen::Vector2d& obr_;
+	const Eigen::Vector2d obr_;
 	const Eigen::Matrix3d& Kr_;
 	const Eigen::Quaterniond& qrl_;
 	const Eigen::Vector3d& trl_;
@@ -125,7 +132,8 @@ struct CeresAutoFactorStereoUVGScale
 
 struct CeresAutoFactorLine3D
 {
-	const Eigen::Vector4d& ob_;
+	//const Eigen::Vector4d& ob_;
+	const Eigen::Vector4d ob_;
 	const Eigen::Matrix3d& KK_;
 	double w_ = 1;
 	CeresAutoFactorLine3D(const Eigen::Vector4d& _ob, const Eigen::Matrix3d& _KK, double _w = 1)
@@ -220,7 +228,24 @@ struct CeresAutoFactorLine3D
 	}
 };
 
+struct CeresAutoFactorPlane
+{
+	//const Eigen::Vector4d& ob_;
+	const Eigen::Vector4d ob_;
+	double w_ = 1;
+	CeresAutoFactorPlane(const Eigen::Vector4d& _ob, double _w = 1)
+		:ob_(_ob), w_(_w)
+	{
+	};
 
+	template<typename T>
+	bool operator()(const T* const _Point, T* _residual) const
+	{
+		_residual[0] = T(w_) * (T(ob_(0)) * _Point[0] + T(ob_(1)) * _Point[1] + T(ob_(2)) * _Point[2] + T(ob_(3)));
+		//std::cout << _residual[0] << std::endl;
+		return true;
+	}
+};
 
 
 

@@ -79,6 +79,13 @@ void CeresProblem::addLine3DFactor(const Eigen::Vector4d& _ob, const Eigen::Matr
 	);
 	this->AddResidualBlock(cost_function, nullptr, _Tcw, _line3D);
 }
+void CeresProblem::addPlaneFactor(const Eigen::Vector4d& _ob, double* _Pw, double _w)
+{
+	ceres::CostFunction* cost_function = new ceres::AutoDiffCostFunction<CeresAutoFactorPlane, 1, 3>(
+		new CeresAutoFactorPlane(_ob, _w)
+	);
+	this->AddResidualBlock(cost_function, nullptr, _Pw);
+}
 
 bool CeresProblem::solve()
 {
@@ -90,6 +97,9 @@ bool CeresProblem::solve()
 	return true;
 }
 
-
+void CeresProblem::setMaxIter(int _maxIter)
+{
+	slvOpt_.max_num_iterations = _maxIter;
+}
 
 #endif // HAS_CERES

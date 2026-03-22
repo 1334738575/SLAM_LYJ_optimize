@@ -38,8 +38,11 @@ public:
 		double* _Tlw, double* _Pw, double* _gScale, double _w = 1);
 	void addLine3DFactor(const Eigen::Vector4d& _ob, const Eigen::Matrix3d& _KK,
 		double* _Tcw, double* _line3D, double _w = 1);
+	void addPlaneFactor(const Eigen::Vector4d& _ob, double* _Pw, double _w = 1);
 
 	bool solve();
+
+	void setMaxIter(int _maxIter);
 
 private:
 	ceres::Solver::Options slvOpt_;
