@@ -16,7 +16,7 @@ namespace OPTIMIZE_LYJ
 		OptimizerSmalld();
 		~OptimizerSmalld();
 
-	private:
+	protected:
 
 		// 通过 OptimizerAbr 继承，默认var和factor的id都是从0开始且连续 TODO
 		bool init() override;
@@ -28,7 +28,7 @@ namespace OPTIMIZE_LYJ
 		bool updateX() override;
 
 
-	private:
+	protected:
 		Eigen::MatrixXd m_A;
 		Eigen::VectorXd m_B;
 		Eigen::VectorXd m_DetX;
@@ -41,7 +41,7 @@ namespace OPTIMIZE_LYJ
 		OptimizerLargeSparse();
 		~OptimizerLargeSparse();
 
-	private:
+	protected:
 
 		// 通过 OptimizerAbr 继承
 		bool init() override;
@@ -52,10 +52,22 @@ namespace OPTIMIZE_LYJ
 
 		bool updateX() override;
 
-	private:
+	protected:
 		Eigen::SparseMatrix<double> m_A;
 		Eigen::VectorXd m_B;
 		Eigen::VectorXd m_DetX;
+
+	};
+
+	class OptimizerLargeSparseJtJ : public OptimizerLargeSparse
+	{
+	public:
+		OptimizerLargeSparseJtJ();
+		~OptimizerLargeSparseJtJ();
+
+	protected:
+		// 通过 OptimizerAbr 继承
+		bool generateAB(double& _err) override;
 
 	};
 
@@ -66,7 +78,7 @@ namespace OPTIMIZE_LYJ
 		OptimizeLargeSRBA();
 		~OptimizeLargeSRBA();
 
-	private:
+	protected:
 
 		class FactorMat
 		{
@@ -450,7 +462,7 @@ namespace OPTIMIZE_LYJ
 		bool solveDetX() override;
 
 		bool updateX() override;
-	private:
+	protected:
 		Eigen::SparseMatrix<double> m_A;
 		Eigen::VectorXd m_B;
 		Eigen::VectorXd m_DetX;

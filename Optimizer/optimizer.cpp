@@ -183,6 +183,7 @@ namespace OPTIMIZE_LYJ
         return true;
     }
 
+
     OptimizerLargeSparse::OptimizerLargeSparse()
     {
     }
@@ -384,6 +385,118 @@ namespace OPTIMIZE_LYJ
         }
         return true;
     }
+
+
+    OptimizerLargeSparseJtJ::OptimizerLargeSparseJtJ()
+    {
+    }
+    OptimizerLargeSparseJtJ::~OptimizerLargeSparseJtJ()
+    {
+    }
+    bool OptimizerLargeSparseJtJ::generateAB(double& _err)
+    {
+        int cols = 0;
+        std::vector<int> vLocs(this->m_vars.size() + 1, 0);
+        for (int i = 0; i < this->m_vars.size(); ++i)
+        {
+            if (!this->m_vars[i]->isFixed())
+                cols += this->m_vars[i]->getTangentDim();
+            vLocs[i + 1] = cols;
+        }
+        if (cols == 0)
+        {
+            std::cout << "no var to optimize" << std::endl;
+            return false;
+        }
+
+
+        std::vector<Eigen::Triplet<double>> tripletLists;
+        tripletLists.reserve(cols * 100);
+        Eigen::SparseMatrix<double> Jac(cols, cols);
+        Eigen::VectorXd Err(cols);
+        Err.setZero();
+        _err = 0;
+        int errCnt = 0;
+
+        int connectCnt = 0;
+        std::vector<OptVarAbr<double>*> vars;
+        std::vector<Eigen::MatrixXd> jacs;
+        std::vector<double*> jacPtrs;
+        Eigen::VectorXd errTmp;
+        int tanDim, eDim, tanDim2;
+        Eigen::MatrixXd jtjTmp;
+        for (int i = 0; i < this->m_factors.size(); ++i)
+        {
+            auto factor = this->m_factors[i];
+            if (!factor->isEnable())
+                continue;
+            const auto& fId = factor->getId();
+            eDim = factor->getEDim();
+            const auto& f2vs = this->m_factor2Vars[fId];
+            connectCnt = f2vs.size();
+
+            vars.resize(connectCnt);
+            for (int j = 0; j < connectCnt; ++j)
+                vars[j] = this->m_vars[f2vs.connectId(j)].get();
+
+            jacs.resize(connectCnt);
+            jacPtrs.resize(connectCnt);
+            for (int j = 0; j < connectCnt; ++j)
+            {
+                const auto& vId = f2vs.connectId(j);
+                const auto& vLoc = vLocs[vId];
+                tanDim = this->m_vars[vId]->getTangentDim();
+                jacs[j].resize(eDim, tanDim);
+                jacPtrs[j] = jacs[j].data();
+            }
+            errTmp.resize(eDim);
+            double* errPtr = errTmp.data();
+            factor->calculateErrAndJac(errPtr, jacPtrs.data(), 1, vars.data());
+            _err += errTmp.norm();
+            ++errCnt;
+
+            for (int j = 0; j < connectCnt; ++j)
+            {
+                Eigen::MatrixXd& jac1 = jacs[j];
+                const auto& vId1 = f2vs.connectId(j);
+                const auto& vLoc1 = vLocs[vId1];
+                tanDim = this->m_vars[vId1]->getTangentDim();
+                for (int k = 0; k < connectCnt; ++k)
+                {
+                    Eigen::MatrixXd& jac2 = jacs[k];
+                    const auto& vId2 = f2vs.connectId(k);
+                    const auto& vLoc = vLocs[vId2];
+                    tanDim2 = this->m_vars[vId2]->getTangentDim();
+
+                    jtjTmp = jac1.transpose() * jac2;
+
+                    if (this->m_vars[vId]->isFixed())
+                    {
+                        continue;
+                    }
+                    for (int ii = 0; ii < eDim; ++ii)
+                    {
+                        for (int jj = 0; jj < tanDim; ++jj)
+                        {
+                            tripletLists.emplace_back(fLoc + ii, vLoc + jj, jacs[j](ii, jj));
+                        }
+                    }
+                }
+            }
+        }
+        if (std::isnan(_err) || std::isinf(_err))
+            std::cout << "nan or inf" << std::endl;
+        _err /= errCnt;
+        if (errCnt == 0)
+            std::cout << "cnt is 0" << std::endl;
+
+        Jac.setFromTriplets(tripletLists.begin(), tripletLists.end());
+        m_A = Jac.transpose() * Jac;
+        m_B = -1 * Jac.transpose() * Err;
+
+        return true;
+    }
+
 
     OptimizeLargeSRBA::OptimizeLargeSRBA()
     {}
@@ -701,4 +814,5 @@ namespace OPTIMIZE_LYJ
         }
         return true;
     }
+
 }
