@@ -423,8 +423,9 @@ void testColmapOptimize2()
     //cv::waitKey(0);
     //imgSz = 2;
 
-    //OPTIMIZE_LYJ::OptimizerLargeSparse optimizer;
-    OPTIMIZE_LYJ::OptimizeLargeSRBA optimizer;//观测多的时候不建议使用
+    OPTIMIZE_LYJ::OptimizerLargeSparse optimizer;
+    //OPTIMIZE_LYJ::OptimizerLargeSparseJtJ optimizer;
+    //OPTIMIZE_LYJ::OptimizeLargeSRBA optimizer;//观测多的时候不建议使用
     std::vector<std::shared_ptr<OPTIMIZE_LYJ::OptVarPose3d>> varTcws;
     std::map<int, int> varTId2Ori;
     std::map<int, int> ori2VarTInd;

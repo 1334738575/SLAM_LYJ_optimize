@@ -57,9 +57,20 @@ namespace OPTIMIZE_LYJ
 		Eigen::VectorXd m_B;
 		Eigen::VectorXd m_DetX;
 
+	private:
+		std::vector<int> vLocs;
+		std::vector<int> fLocs;
+		Eigen::SparseMatrix<double> Jac;
+		Eigen::VectorXd Err;
+		int rows = 0;
+		int cols = 0;
+		uint64_t tripletSz = 0;
+		bool firstA = true;
+		std::map<std::pair<int, int>, int> pos_map;
+
 	};
 
-	class OptimizerLargeSparseJtJ : public OptimizerLargeSparse
+	class OPTIMIZE_LYJ_API OptimizerLargeSparseJtJ : public OptimizerLargeSparse
 	{
 	public:
 		OptimizerLargeSparseJtJ();
@@ -67,8 +78,18 @@ namespace OPTIMIZE_LYJ
 
 	protected:
 		// Í¨¹ý OptimizerAbr ¼Ì³Ð
+		bool init() override;
+
 		bool generateAB(double& _err) override;
 
+	private:
+		std::vector<int> vLocs;
+		std::vector<std::map<int, int>> colsMap;
+		int jtjCnt = 0;
+		uint64_t tripletSz = 0;
+		std::vector<Eigen::MatrixXd> jtjs;
+		bool firstA = true;
+		std::map<std::pair<int, int>, int> pos_map;
 	};
 
 
