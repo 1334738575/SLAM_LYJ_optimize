@@ -183,7 +183,6 @@ namespace OPTIMIZE_LYJ
         return true;
     }
 
-
     OptimizerLargeSparse::OptimizerLargeSparse()
     {
     }
@@ -305,11 +304,11 @@ namespace OPTIMIZE_LYJ
         Jac.setFromTriplets(tripletLists.begin(), tripletLists.end());
         m_A = Jac.transpose() * Jac;
         m_B = -1 * Jac.transpose() * Err;
-        //for (int i = 0; i < Err.rows(); ++i)
-        //    _err += std::abs(Err(i));
+        // for (int i = 0; i < Err.rows(); ++i)
+        //     _err += std::abs(Err(i));
         //_err /= Err.rows();
-        //for (int i = 0; i < m_B.rows(); ++i)
-        //    _err += std::abs(m_B(i));
+        // for (int i = 0; i < m_B.rows(); ++i)
+        //     _err += std::abs(m_B(i));
         //_err /= m_B.rows();
 
         return true;
@@ -325,30 +324,30 @@ namespace OPTIMIZE_LYJ
             return false;
         }
 
-        //Eigen::MatrixXd A(m_A);
-        //std::ofstream f("D:/tmp/A2.txt");
-        //f << A.rows() << std::endl;
-        //f << A.cols() << std::endl;
-        //f << A << std::endl;
-        //f.close();
-        //Eigen::MatrixXd B(m_B);
-        //std::ofstream f2("D:/tmp/B2.txt");
-        //f2 << B.rows() << std::endl;
-        //f2 << B.cols() << std::endl;
-        //f2 << B << std::endl;
-        //f2.close();
+        // Eigen::MatrixXd A(m_A);
+        // std::ofstream f("D:/tmp/A2.txt");
+        // f << A.rows() << std::endl;
+        // f << A.cols() << std::endl;
+        // f << A << std::endl;
+        // f.close();
+        // Eigen::MatrixXd B(m_B);
+        // std::ofstream f2("D:/tmp/B2.txt");
+        // f2 << B.rows() << std::endl;
+        // f2 << B.cols() << std::endl;
+        // f2 << B << std::endl;
+        // f2.close();
         //// 2. 创建自伴随（实对称）特征值求解器，计算特征值和特征向量
-        //Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(A);
+        // Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(A);
         //// 检查求解是否成功
-        //if (eigensolver.info() != Eigen::Success) {
-        //    std::cerr << "特征值求解失败！" << std::endl;
-        //    return -1;
-        //}
+        // if (eigensolver.info() != Eigen::Success) {
+        //     std::cerr << "特征值求解失败！" << std::endl;
+        //     return -1;
+        // }
         //// 3. 获取结果
         //// 特征值（已按升序排列）
-        //Eigen::Vector3d eigenvalues = eigensolver.eigenvalues();
+        // Eigen::Vector3d eigenvalues = eigensolver.eigenvalues();
         //// 4. 输出结果
-        //std::cout << "特征值（升序）：\n" << eigenvalues.minCoeff() << "\n\n";
+        // std::cout << "特征值（升序）：\n" << eigenvalues.minCoeff() << "\n\n";
 
         // 求解 Ax = b
         m_DetX = solver.solve(m_B);
@@ -386,18 +385,19 @@ namespace OPTIMIZE_LYJ
         return true;
     }
 
-
     OptimizerLargeSparseJtJ::OptimizerLargeSparseJtJ()
     {
     }
     OptimizerLargeSparseJtJ::~OptimizerLargeSparseJtJ()
     {
     }
-    bool OptimizerLargeSparseJtJ::generateAB(double& _err)
+    bool OptimizerLargeSparseJtJ::generateAB(double &_err)
     {
+        int vSize = this->m_vars.size();
+        int fSize = this->m_factors.size();
         int cols = 0;
-        std::vector<int> vLocs(this->m_vars.size() + 1, 0);
-        for (int i = 0; i < this->m_vars.size(); ++i)
+        std::vector<int> vLocs(vSize + 1, 0);
+        for (int i = 0; i < vSize; ++i)
         {
             if (!this->m_vars[i]->isFixed())
                 cols += this->m_vars[i]->getTangentDim();
@@ -409,30 +409,65 @@ namespace OPTIMIZE_LYJ
             return false;
         }
 
-
-        std::vector<Eigen::Triplet<double>> tripletLists;
-        tripletLists.reserve(cols * 100);
-        Eigen::SparseMatrix<double> Jac(cols, cols);
-        Eigen::VectorXd Err(cols);
-        Err.setZero();
-        _err = 0;
-        int errCnt = 0;
-
+        int tanDimj, tanDimk;
         int connectCnt = 0;
-        std::vector<OptVarAbr<double>*> vars;
-        std::vector<Eigen::MatrixXd> jacs;
-        std::vector<double*> jacPtrs;
-        Eigen::VectorXd errTmp;
-        int tanDim, eDim, tanDim2;
-        Eigen::MatrixXd jtjTmp;
-        for (int i = 0; i < this->m_factors.size(); ++i)
+        int eDim;
+
+        std::vector<std::map<int, int>> colsMap(vSize); // var2var2jtj
+        int jtjCnt = 0;
+        uint64_t tripletSz = 0;
+        for (int i = 0; i < fSize; ++i)
         {
             auto factor = this->m_factors[i];
             if (!factor->isEnable())
                 continue;
-            const auto& fId = factor->getId();
+            const auto &fId = factor->getId();
             eDim = factor->getEDim();
-            const auto& f2vs = this->m_factor2Vars[fId];
+            connectCnt = f2vs.size();
+            for (int j = 0; j < connectCnt; ++j)
+            {
+                const auto &vIdj = this->m_vars[f2vs.connectId(j)]->getId();
+                if (this->m_vars[vIdj]->isFixed())
+                    continue;
+                tanDimj = this->m_vars[f2vs.connectId(j)]->getTangentDim();
+                for (int k = 0; k < connectCnt; ++k)
+                {
+                    const auto &vIdk = this->m_vars[f2vs.connectId(k)]->getId();
+                    if (this->m_vars[vIdk]->isFixed())
+                        continue;
+                    tanDimk = this->m_vars[f2vs.connectId(k)]->getTangentDim();
+                    if (vIdj > vIdk)
+                        continue;
+                    if (colsMap[vIdj].count(vIdk))
+                        continue;
+                    colsMap[vIdj][vIdk] = jtjCnt++;
+                    tripletSz += (tanDimj * tanDimk);
+                }
+            }
+        }
+
+        std::vector<Eigen::MatrixXd> jtjs;
+        jtjs.reserve(jtjCnt);
+        jtjs.resize(jtjCnt);
+        m_B.resize(cols);
+        m_B.setZero();
+        _err = 0;
+        int errCnt = 0;
+
+        std::vector<OptVarAbr<double> *> vars;
+        std::vector<Eigen::MatrixXd> jacs;
+        std::vector<double *> jacPtrs;
+        Eigen::VectorXd errTmp;
+        Eigen::MatrixXd jtjTmp;
+        Eigen::VectorXd jteTmp;
+        for (int i = 0; i < fSize; ++i)
+        {
+            auto factor = this->m_factors[i];
+            if (!factor->isEnable())
+                continue;
+            const auto &fId = factor->getId();
+            eDim = factor->getEDim();
+            const auto &f2vs = this->m_factor2Vars[fId];
             connectCnt = f2vs.size();
 
             vars.resize(connectCnt);
@@ -443,44 +478,49 @@ namespace OPTIMIZE_LYJ
             jacPtrs.resize(connectCnt);
             for (int j = 0; j < connectCnt; ++j)
             {
-                const auto& vId = f2vs.connectId(j);
-                const auto& vLoc = vLocs[vId];
+                const auto &vId = f2vs.connectId(j);
+                const auto &vLoc = vLocs[vId];
                 tanDim = this->m_vars[vId]->getTangentDim();
                 jacs[j].resize(eDim, tanDim);
                 jacPtrs[j] = jacs[j].data();
             }
             errTmp.resize(eDim);
-            double* errPtr = errTmp.data();
+            double *errPtr = errTmp.data();
             factor->calculateErrAndJac(errPtr, jacPtrs.data(), 1, vars.data());
             _err += errTmp.norm();
             ++errCnt;
 
             for (int j = 0; j < connectCnt; ++j)
             {
-                Eigen::MatrixXd& jac1 = jacs[j];
-                const auto& vId1 = f2vs.connectId(j);
-                const auto& vLoc1 = vLocs[vId1];
-                tanDim = this->m_vars[vId1]->getTangentDim();
+                const auto &vId1 = f2vs.connectId(j);
+                if (this->m_vars[vId1]->isFixed())
+                    continue;
+
+                Eigen::MatrixXd &jac1 = jacs[j];
+                const auto &vLoc1 = vLocs[vId1];
+                tanDimj = this->m_vars[vId1]->getTangentDim();
+                jteTmp = jac1.transpose() * errTmp;
+                Eigen::Map<Eigen::VectorXd> jteMap(m_B.data() + vLoc1, tanDimj);
+                jteMap += jteTmp;
+
                 for (int k = 0; k < connectCnt; ++k)
                 {
-                    Eigen::MatrixXd& jac2 = jacs[k];
-                    const auto& vId2 = f2vs.connectId(k);
-                    const auto& vLoc = vLocs[vId2];
-                    tanDim2 = this->m_vars[vId2]->getTangentDim();
+                    const auto &vId2 = f2vs.connectId(k);
+                    if (this->m_vars[vId2]->isFixed())
+                        continue;
+                    if (vId1 > vId2)
+                        continue;
+
+                    Eigen::MatrixXd &jac2 = jacs[k];
+                    const auto &vLoc = vLocs[vId2];
+                    tanDimk = this->m_vars[vId2]->getTangentDim();
 
                     jtjTmp = jac1.transpose() * jac2;
-
-                    if (this->m_vars[vId]->isFixed())
-                    {
-                        continue;
-                    }
-                    for (int ii = 0; ii < eDim; ++ii)
-                    {
-                        for (int jj = 0; jj < tanDim; ++jj)
-                        {
-                            tripletLists.emplace_back(fLoc + ii, vLoc + jj, jacs[j](ii, jj));
-                        }
-                    }
+                    const int &jtjInd = colsMap[vId1][vId2];
+                    if (jtjs[jtjInd].rows() == 0)
+                        jtjs[jtjInd] = jtjTmp;
+                    else
+                        jtjs[jtjInd] += jtjTmp;
                 }
             }
         }
@@ -490,28 +530,54 @@ namespace OPTIMIZE_LYJ
         if (errCnt == 0)
             std::cout << "cnt is 0" << std::endl;
 
-        Jac.setFromTriplets(tripletLists.begin(), tripletLists.end());
-        m_A = Jac.transpose() * Jac;
-        m_B = -1 * Jac.transpose() * Err;
+        std::vector<Eigen::Triplet<double>> tripletLists;
+        tripletLists.reserve(tripletSz);
+        for (int i = 0; i < vSize; ++i)
+        {
+            if (colsMap[i].empty())
+                continue;
+            const auto &vId1 = i;
+            const auto &vInd1 = vLocs[vId1];
+            for (const auto &mm : colsMap[i])
+            {
+                const auto &vId2 = mm.first;
+                const auto &vInd2 = vLocs[vId2];
+                const auto &jtjInd = mm.second;
+                const Eigen::MatrixXd &jtj = jtjs[jtjInd];
+                for (int ii = 0; ii < jtj.rows(); ++ii)
+                {
+                    for (int jj = 0; jj < jtj.cols(); ++jj)
+                    {
+                        tripletLists.emplace_back(vInd1 + ii, vInd2 + jj, jtj(ii, jj));
+                        if (vId1 != vId2)
+                            tripletLists.emplace_back(vInd2 + jj, vInd1 + ii, jtj(ii, jj));
+                    }
+                }
+            }
+        }
+
+        m_A.resize(cols, cols);
+        m_A.setFromTriplets(tripletLists.begin(), tripletLists.end());
 
         return true;
     }
 
-
     OptimizeLargeSRBA::OptimizeLargeSRBA()
-    {}
+    {
+    }
     OptimizeLargeSRBA::~OptimizeLargeSRBA()
-    {}
+    {
+    }
     bool OptimizeLargeSRBA::init()
     {
-        //m_vars.clear();
-        //m_var2Factors.clear();
-        //m_factors.clear();
-        //m_factor2Vars.clear();
+        // m_vars.clear();
+        // m_var2Factors.clear();
+        // m_factors.clear();
+        // m_factor2Vars.clear();
         m_eliminationType.clear();
         for (int i = 0; i < m_vars.size(); ++i)
         {
-            const auto& t = m_vars[i]->getType();
+            const auto &t = m_vars[i]->getType();
             if (t == VAR_T3D || t == VAR_T2D || t == VAR_IMU)
                 continue;
             m_eliminationType.insert(t);
@@ -531,98 +597,97 @@ namespace OPTIMIZE_LYJ
         int incCnt = 0;
         for (int i = 0; i < vSz; ++i)
         {
-            const auto& t = m_vars[i]->getType();
-            const int& vId = m_vars[i]->getId();
+            const auto &t = m_vars[i]->getType();
+            const int &vId = m_vars[i]->getId();
             if (m_eliminationType.count(t))
                 ++incCnt;
         }
 
         _err = 0;
         int errCnt = 0;
-        auto funcCalFactorMats = [&]()->bool
+        auto funcCalFactorMats = [&]() -> bool
+        {
+            m_factorMats.resize(fSz + incCnt);
+            int connectCnt = 0;
+            std::vector<OptVarAbr<double> *> vars;
+            std::vector<double *> jacPtrs;
+            int tanDim, eDim;
+            for (int i = 0; i < fSz; ++i)
             {
-                m_factorMats.resize(fSz + incCnt);
-                int connectCnt = 0;
-                std::vector<OptVarAbr<double>*> vars;
-                std::vector<double*> jacPtrs;
-                int tanDim, eDim;
-                for (int i = 0; i < fSz; ++i)
+                auto factor = this->m_factors[i];
+                if (!factor->isEnable())
                 {
-                    auto factor = this->m_factors[i];
-                    if (!factor->isEnable())
-                    {
-                        std::cout << "error factor!" << std::endl;
-                        return false;
-                    }
-                    const auto& fId = factor->getId();
-                    eDim = factor->getEDim();
-                    m_factorMats[i].m_err.resize(eDim);
-                    const auto& f2vs = this->m_factor2Vars[fId];
-                    std::vector<Eigen::MatrixXd>& jacs = m_factorMats[i].m_jacs;
-                    m_factorMats[i].m_f2vs = f2vs;
-                    m_factorMats[i].m_id = fId;
-                    //m_factorMats[i].m_factor = factor;
-                    connectCnt = f2vs.size();
-                    vars.resize(connectCnt);
-                    for (int j = 0; j < connectCnt; ++j)
-                        vars[j] = this->m_vars[f2vs.connectId(j)].get();
-                    jacs.resize(connectCnt);
-                    jacPtrs.resize(connectCnt);
-                    for (int j = 0; j < connectCnt; ++j)
-                    {
-                        const auto& vId = f2vs.connectId(j);
-                        tanDim = this->m_vars[vId]->getTangentDim();
-                        jacs[j].resize(eDim, tanDim);
-                        jacPtrs[j] = jacs[j].data();
-                    }
-                    m_factorMats[i].m_vars = vars;
-                    double* errPtr = m_factorMats[i].m_err.data();
-                    factor->calculateErrAndJac(errPtr, jacPtrs.data(), 1, vars.data());
-                    _err += m_factorMats[i].m_err.norm();
-                    ++errCnt;
+                    std::cout << "error factor!" << std::endl;
+                    return false;
                 }
-                return true;
-            };
+                const auto &fId = factor->getId();
+                eDim = factor->getEDim();
+                m_factorMats[i].m_err.resize(eDim);
+                const auto &f2vs = this->m_factor2Vars[fId];
+                std::vector<Eigen::MatrixXd> &jacs = m_factorMats[i].m_jacs;
+                m_factorMats[i].m_f2vs = f2vs;
+                m_factorMats[i].m_id = fId;
+                // m_factorMats[i].m_factor = factor;
+                connectCnt = f2vs.size();
+                vars.resize(connectCnt);
+                for (int j = 0; j < connectCnt; ++j)
+                    vars[j] = this->m_vars[f2vs.connectId(j)].get();
+                jacs.resize(connectCnt);
+                jacPtrs.resize(connectCnt);
+                for (int j = 0; j < connectCnt; ++j)
+                {
+                    const auto &vId = f2vs.connectId(j);
+                    tanDim = this->m_vars[vId]->getTangentDim();
+                    jacs[j].resize(eDim, tanDim);
+                    jacPtrs[j] = jacs[j].data();
+                }
+                m_factorMats[i].m_vars = vars;
+                double *errPtr = m_factorMats[i].m_err.data();
+                factor->calculateErrAndJac(errPtr, jacPtrs.data(), 1, vars.data());
+                _err += m_factorMats[i].m_err.norm();
+                ++errCnt;
+            }
+            return true;
+        };
         funcCalFactorMats();
         _err /= errCnt;
 
         int cols = 0;
         m_cLocs.resize(vSz + 1, 0);
-        std::vector<FactorMat*> fMatsTmp;
+        std::vector<FactorMat *> fMatsTmp;
         FactorMat fMatTmp;
         for (int i = 0; i < vSz; ++i)
         {
-            const auto& t = m_vars[i]->getType();
-            const int& vId = m_vars[i]->getId();
+            const auto &t = m_vars[i]->getType();
+            const int &vId = m_vars[i]->getId();
             fMatsTmp.clear();
             if (m_vars[i]->isFixed())
             {
-
             }
             else if (m_eliminationType.count(t))
             {
-                //new factor
+                // new factor
                 Var2Factor v2fs = m_var2Factors[vId];
                 int cSz = v2fs.size();
                 m_eliminationMats.emplace_back(t, vId);
-                auto& fMatsIn = m_eliminationMats.back().m_fMatsIn;
+                auto &fMatsIn = m_eliminationMats.back().m_fMatsIn;
                 fMatsIn.resize(cSz);
                 for (int j = 0; j < cSz; ++j)
                 {
-                    const auto& fId = v2fs.connectId(j);
-                    //FactorMat* fMat = &m_factorMats[fId];
-                    //fMatsTmp.push_back(fMat);
-                    //fMat->m_valid = false;
-                    //fMatsIn.push_back(&m_factorMats[fId]);
-                    //fMatsIn.back()->m_valid = false;
+                    const auto &fId = v2fs.connectId(j);
+                    // FactorMat* fMat = &m_factorMats[fId];
+                    // fMatsTmp.push_back(fMat);
+                    // fMat->m_valid = false;
+                    // fMatsIn.push_back(&m_factorMats[fId]);
+                    // fMatsIn.back()->m_valid = false;
                     fMatsIn[j] = &m_factorMats[fId];
                     fMatsIn[j]->m_valid = false;
                 }
-                //m_eliminationMats.emplace_back(fMatsTmp, t, vId);
-                //fMatTmp.m_id = m_factorMats.size();
-                //m_factorMats.push_back(fMatTmp);
-                //m_eliminationMats.back().m_factorMatRemand = &m_factorMats.back();
-                if(!useSR)
+                // m_eliminationMats.emplace_back(fMatsTmp, t, vId);
+                // fMatTmp.m_id = m_factorMats.size();
+                // m_factorMats.push_back(fMatTmp);
+                // m_eliminationMats.back().m_factorMatRemand = &m_factorMats.back();
+                if (!useSR)
                     cols += m_vars[i]->getTangentDim();
             }
             else
@@ -637,7 +702,7 @@ namespace OPTIMIZE_LYJ
         {
             m_factorMats[fSz + i].m_id = fSz + i;
             m_eliminationMats[i].m_factorMatRemand = &m_factorMats[fSz + i];
-            if(!useSR)
+            if (!useSR)
                 m_eliminationMats[i].QR2();
             else
                 m_eliminationMats[i].QR();
@@ -664,18 +729,18 @@ namespace OPTIMIZE_LYJ
             int er = m_rLocs[i + 1];
             if (sr == er)
                 continue;
-            //const auto& vars = m_factorMats[i].m_vars;
-            const auto& f2vs = m_factorMats[i].m_f2vs;
+            // const auto& vars = m_factorMats[i].m_vars;
+            const auto &f2vs = m_factorMats[i].m_f2vs;
             int cSz = f2vs.size();
             for (int j = 0; j < cSz; ++j)
             {
-                const auto& vId = f2vs.connectId(j);
+                const auto &vId = f2vs.connectId(j);
                 int sc = m_cLocs[vId];
                 int ec = m_cLocs[vId + 1];
                 if (sc == ec)
                     continue;
-                const auto& jac = m_factorMats[i].m_jacs[j];
-                const auto& err = m_factorMats[i].m_err;
+                const auto &jac = m_factorMats[i].m_jacs[j];
+                const auto &err = m_factorMats[i].m_err;
                 for (int r = 0; r < (er - sr); ++r)
                 {
                     for (int c = 0; c < (ec - sc); ++c)
@@ -690,22 +755,22 @@ namespace OPTIMIZE_LYJ
         Jac.setFromTriplets(tripletLists.begin(), tripletLists.end());
         m_A = Jac.transpose() * Jac;
         m_B = -1 * Jac.transpose() * Err;
-        //for (int i = 0; i < Err.rows(); ++i)
-        //    _err += std::abs(Err(i));
+        // for (int i = 0; i < Err.rows(); ++i)
+        //     _err += std::abs(Err(i));
         //_err /= Err.rows();
-        //for (int i = 0; i < m_B.rows(); ++i)
-        //    _err += std::abs(m_B(i));
+        // for (int i = 0; i < m_B.rows(); ++i)
+        //     _err += std::abs(m_B(i));
         //_err /= m_B.rows();
-        //Eigen::MatrixXd J(Jac);
-        //std::ofstream f2("D:/tmp/j1.txt");
-        //f2 << J.rows() << std::endl;
-        //f2 << J.cols() << std::endl;
-        //f2 << J << std::endl;
-        //f2.close();
-        //std::ofstream f("D:/tmp/e1.txt");
-        //f << Err.rows() << std::endl;
-        //f << Err << std::endl;
-        //f.close();
+        // Eigen::MatrixXd J(Jac);
+        // std::ofstream f2("D:/tmp/j1.txt");
+        // f2 << J.rows() << std::endl;
+        // f2 << J.cols() << std::endl;
+        // f2 << J << std::endl;
+        // f2.close();
+        // std::ofstream f("D:/tmp/e1.txt");
+        // f << Err.rows() << std::endl;
+        // f << Err << std::endl;
+        // f.close();
         return true;
     }
     bool OptimizeLargeSRBA::solveDetX()
@@ -718,34 +783,34 @@ namespace OPTIMIZE_LYJ
             std::cerr << "Decomposition failed!" << std::endl;
             return false;
         }
-        //std::cout << m_A.rows() << " " << m_A.cols() << std::endl;
-        //std::cout << m_B.rows() << std::endl;
-        //std::cout << m_B.cols() << std::endl;
+        // std::cout << m_A.rows() << " " << m_A.cols() << std::endl;
+        // std::cout << m_B.rows() << std::endl;
+        // std::cout << m_B.cols() << std::endl;
 
-        //Eigen::MatrixXd A(m_A);
-        //std::ofstream f("D:/tmp/A1.txt");
-        //f << A.rows() << std::endl;
-        //f << A.cols() << std::endl;
-        //f << A << std::endl;
-        //f.close();
-        //Eigen::MatrixXd B(m_B);
-        //std::ofstream f2("D:/tmp/B1.txt");
-        //f2 << B.rows() << std::endl;
-        //f2 << B.cols() << std::endl;
-        //f2 << B << std::endl;
-        //f2.close();
+        // Eigen::MatrixXd A(m_A);
+        // std::ofstream f("D:/tmp/A1.txt");
+        // f << A.rows() << std::endl;
+        // f << A.cols() << std::endl;
+        // f << A << std::endl;
+        // f.close();
+        // Eigen::MatrixXd B(m_B);
+        // std::ofstream f2("D:/tmp/B1.txt");
+        // f2 << B.rows() << std::endl;
+        // f2 << B.cols() << std::endl;
+        // f2 << B << std::endl;
+        // f2.close();
         //// 2. 创建自伴随（实对称）特征值求解器，计算特征值和特征向量
-        //Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(A);
+        // Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(A);
         //// 检查求解是否成功
-        //if (eigensolver.info() != Eigen::Success) {
-        //    std::cerr << "特征值求解失败！" << std::endl;
-        //    return -1;
-        //}
+        // if (eigensolver.info() != Eigen::Success) {
+        //     std::cerr << "特征值求解失败！" << std::endl;
+        //     return -1;
+        // }
         //// 3. 获取结果
         //// 特征值（已按升序排列）
-        //Eigen::Vector3d eigenvalues = eigensolver.eigenvalues();
+        // Eigen::Vector3d eigenvalues = eigensolver.eigenvalues();
         //// 4. 输出结果
-        //std::cout << "特征值（升序）：\n" << eigenvalues.minCoeff() << "\n\n";
+        // std::cout << "特征值（升序）：\n" << eigenvalues.minCoeff() << "\n\n";
 
         // 求解 Ax = b
         m_DetX = solver.solve(m_B);
@@ -773,7 +838,7 @@ namespace OPTIMIZE_LYJ
                 continue;
             }
             auto var = this->m_vars[i];
-            double* detXPtr = this->m_DetX.data() + sc;
+            double *detXPtr = this->m_DetX.data() + sc;
             var->update(detXPtr);
         }
 
@@ -783,16 +848,16 @@ namespace OPTIMIZE_LYJ
         for (int i = 0; i < eSz; ++i)
         {
             dXs.clear();
-            const auto& vars = m_eliminationMats[i].m_factorMatEliminate.m_vars;
-            const auto& f2vs = m_eliminationMats[i].m_factorMatEliminate.m_f2vs;
-            const auto& vIdEli = m_eliminationMats[i].m_vId;
+            const auto &vars = m_eliminationMats[i].m_factorMatEliminate.m_vars;
+            const auto &f2vs = m_eliminationMats[i].m_factorMatEliminate.m_f2vs;
+            const auto &vIdEli = m_eliminationMats[i].m_vId;
             int cSz = f2vs.size();
             int eliDim = m_vars[vIdEli]->getTangentDim();
             dXEli.resize(eliDim);
-            //dXs.resize(cSz);
+            // dXs.resize(cSz);
             for (int j = 0; j < cSz; ++j)
             {
-                const auto& vId = f2vs.connectId(j);
+                const auto &vId = f2vs.connectId(j);
                 if (m_vars[vId]->isFixed())
                 {
                     Eigen::Map<Eigen::VectorXd> dX(fixedDetXs[vId].data(), fixedDetXs[vId].rows());
