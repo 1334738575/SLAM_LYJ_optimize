@@ -5,7 +5,7 @@ namespace OPTIMIZE_LYJ
 {
     namespace OPTIMIZE_BASE
     {
-        OPTIMIZE_LYJ_API Eigen::Matrix3d orthogonalizeRotationSVD(const Eigen::Matrix3d& R)
+        OPTIMIZE_LYJ_API Eigen::Matrix3d orthogonalizeRotationSVD(const Eigen::Matrix3d &R)
         {
             Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);
             Eigen::Matrix3d U = svd.matrixU();
@@ -13,7 +13,8 @@ namespace OPTIMIZE_LYJ
             Eigen::Matrix3d R_reg = U * V.transpose();
 
             // 确保行列式为1
-            if (R_reg.determinant() < 0) {
+            if (R_reg.determinant() < 0)
+            {
                 R_reg.col(2) *= -1.0; // 反转第三列
             }
             return R_reg;
@@ -22,7 +23,7 @@ namespace OPTIMIZE_LYJ
         {
             Eigen::Matrix<double, 3, 4> T12;
             T12.setZero();
-            const Eigen::Matrix3d& Rw1 = _Tw1.block(0, 0, 3, 3);
+            const Eigen::Matrix3d &Rw1 = _Tw1.block(0, 0, 3, 3);
             Eigen::Matrix3d R1w = orthogonalizeRotationSVD(Rw1.transpose());
             T12.block(0, 0, 3, 3) = R1w * _Tw2.block(0, 0, 3, 3);
             T12.block(0, 3, 3, 1) = R1w * (_Tw2.block(0, 3, 3, 1) - _Tw1.block(0, 3, 3, 1));
@@ -35,7 +36,7 @@ namespace OPTIMIZE_LYJ
             Eigen::Map<const Eigen::Matrix<double, 3, 4>> Tw2(_Tw2);
             Eigen::Matrix<double, 3, 4> T12;
             T12.setZero();
-            const Eigen::Matrix3d& Rw1 = Tw1.block(0, 0, 3, 3);
+            const Eigen::Matrix3d &Rw1 = Tw1.block(0, 0, 3, 3);
             Eigen::Matrix3d R1w = orthogonalizeRotationSVD(Rw1.transpose());
             T12.block(0, 0, 3, 3) = R1w * Tw2.block(0, 0, 3, 3);
             T12.block(0, 3, 3, 1) = R1w * (Tw2.block(0, 3, 3, 1) - Tw1.block(0, 3, 3, 1));
@@ -45,7 +46,7 @@ namespace OPTIMIZE_LYJ
         Eigen::Matrix<double, 3, 4> invPose(const Eigen::Matrix<double, 3, 4> &_T)
         {
             Eigen::Matrix<double, 3, 4> invT;
-            const Eigen::Matrix3d& R = _T.block(0, 0, 3, 3);
+            const Eigen::Matrix3d &R = _T.block(0, 0, 3, 3);
             invT.block(0, 0, 3, 3) = orthogonalizeRotationSVD(R.transpose());
             invT.block(0, 3, 3, 1) = -1 * invT.block(0, 0, 3, 3) * _T.block(0, 3, 3, 1);
             return invT;
@@ -114,12 +115,12 @@ namespace OPTIMIZE_LYJ
             double w2 = sin(phi);
             plk.head(3) = R.col(0) * w1;
             plk.tail(3) = R.col(1) * w2;
-            //double d = phi;
-            //plk.head(3) = R.col(0) * d;
-            //plk.tail(3) = R.col(1);
+            // double d = phi;
+            // plk.head(3) = R.col(0) * d;
+            // plk.tail(3) = R.col(1);
             return plk;
         }
-        v6d line_to_plk(const v3d& p, const v3d& v)
+        v6d line_to_plk(const v3d &p, const v3d &v)
         {
             v3d vn = v.normalized();
             v3d n = p.cross(vn);
@@ -159,7 +160,7 @@ namespace OPTIMIZE_LYJ
             double w1 = std::cos(phi);
             double w2 = std::sin(phi);
             double d = w1 / w2; // 原点到直线的距离
-            //double d = phi;
+            // double d = phi;
 
             line.head(3) = -R.col(2) * d;
             line.tail(3) = R.col(1);
@@ -167,7 +168,7 @@ namespace OPTIMIZE_LYJ
             return line;
         }
         // 普吕克与正交转换
-        v4d plk_to_orth(const v3d& n, const v3d& v)
+        v4d plk_to_orth(const v3d &n, const v3d &v)
         {
             v4d orth;
             v3d u1 = n / n.norm();
@@ -181,7 +182,7 @@ namespace OPTIMIZE_LYJ
             v2d w(n.norm(), v.norm());
             w = w / w.norm();
             orth[3] = std::asin(w(1));
-            //orth[3] = n.cross(v).norm();
+            // orth[3] = n.cross(v).norm();
 
             return orth;
         }
@@ -191,7 +192,7 @@ namespace OPTIMIZE_LYJ
             v3d n = p.cross(vNm);
             return plk_to_orth(n, vNm);
         }
-        v4d pp_to_orth(const v3d& sp, const v3d& ep)
+        v4d pp_to_orth(const v3d &sp, const v3d &ep)
         {
             v3d v = (ep - sp);
             return line_to_orth(sp, v);
@@ -379,10 +380,10 @@ namespace OPTIMIZE_LYJ
             P1 = P2 - V * 6;
         }
 
-        OPTIMIZE_LYJ_API void convertK2KK(const Eigen::Matrix3d& _K, Eigen::Matrix3d& _KK)
+        OPTIMIZE_LYJ_API void convertK2KK(const Eigen::Matrix3d &_K, Eigen::Matrix3d &_KK)
         {
-            const double& fx = _K(0, 0);
-            const double& fy = _K(1, 1);
+            const double &fx = _K(0, 0);
+            const double &fy = _K(1, 1);
             _KK.setZero();
             Eigen::Matrix3d KK = _K.inverse();
             _KK = KK.transpose();
@@ -846,7 +847,7 @@ namespace OPTIMIZE_LYJ
                 std::cout << "nan or inf" << std::endl;
         }
 
-        OPTIMIZE_LYJ_API void cal_jac_errL_Pw(const v3d& LPw, const v3d& dirw, const v3d& Pw, v3d& err, m33& jac)
+        OPTIMIZE_LYJ_API void cal_jac_errL_Pw(const v3d &LPw, const v3d &dirw, const v3d &Pw, v3d &err, m33 &jac)
         {
             v3d dP = Pw - LPw;
             jac = m33::Identity() - dirw * dirw.transpose();
@@ -878,6 +879,11 @@ namespace OPTIMIZE_LYJ
             Eigen::Vector3d Pc = Tcw.block(0, 0, 3, 3) * Pw + Tcw.block(0, 3, 3, 1);
             err(0) = uv(0) - K(0, 0) * Pc(0) / Pc(2) - K(0, 2);
             err(1) = uv(1) - K(1, 1) * Pc(1) / Pc(2) - K(1, 2);
+            double w = 1;
+            double e = err.norm();
+            if (e > 1)
+                w = exp(-1 * (e - 1));
+            err *= w;
 
             /*
             -fx/Z   0       fxX/Z2
@@ -897,9 +903,9 @@ namespace OPTIMIZE_LYJ
             dPcdT.block(0, 3, 3, 3) << 0, Pc(2), -1 * Pc(1),
                 -1 * Pc(2), 0, Pc(0),
                 Pc(1), -1 * Pc(0), 0;
-            jacUV_Tcw = dedPc * dPcdT;
+            jacUV_Tcw = dedPc * dPcdT * w;
             Eigen::Matrix3d dPcPw = Tcw.block(0, 0, 3, 3);
-            jac_UV_Pw = dedPc * dPcPw;
+            jac_UV_Pw = dedPc * dPcPw * w;
             if (std::isnan(err.norm()) || std::isnan(jacUV_Tcw.norm()) || std::isnan(jac_UV_Pw.norm()))
             {
                 std::cout << err << std::endl;
@@ -907,7 +913,7 @@ namespace OPTIMIZE_LYJ
                 std::cout << jac_UV_Pw << std::endl;
             }
         }
-        OPTIMIZE_LYJ_API void cal_jac_errPc_Tcw_Pw(const m34& Tcw, const v3d& Pw, const v3d& Pc, v3d& err, m36& jacPc_Tcw, m33& jac_Pc_Pw)
+        OPTIMIZE_LYJ_API void cal_jac_errPc_Tcw_Pw(const m34 &Tcw, const v3d &Pw, const v3d &Pc, v3d &err, m36 &jacPc_Tcw, m33 &jac_Pc_Pw)
         {
             Eigen::Vector3d Pwc = Tcw.block(0, 0, 3, 3) * Pw + Tcw.block(0, 3, 3, 1);
             err = Pc - Pwc;
@@ -931,14 +937,14 @@ namespace OPTIMIZE_LYJ
             return;
         }
         OPTIMIZE_LYJ_API void cal_jac_errPc_Tcw_Tcw(
-            const m34& Tcw1, const v3d& Pc1, 
-            const m34& Tcw2, const v3d& Pc2, 
-            v3d& err, m36& jacPc_Tcw1, m36& jac_Pc_Tcw2)
+            const m34 &Tcw1, const v3d &Pc1,
+            const m34 &Tcw2, const v3d &Pc2,
+            v3d &err, m36 &jacPc_Tcw1, m36 &jac_Pc_Tcw2)
         {
-            const m33& Rcw1 = Tcw1.block(0, 0, 3, 3);
-            const m33& Rcw2 = Tcw2.block(0, 0, 3, 3);
-            const v3d& tcw1 = Tcw1.block(0, 3, 3, 1);
-            const v3d& tcw2 = Tcw2.block(0, 3, 3, 1);
+            const m33 &Rcw1 = Tcw1.block(0, 0, 3, 3);
+            const m33 &Rcw2 = Tcw2.block(0, 0, 3, 3);
+            const v3d &tcw1 = Tcw1.block(0, 3, 3, 1);
+            const v3d &tcw2 = Tcw2.block(0, 3, 3, 1);
             m33 Rwc1 = Rcw1.transpose();
             m33 Rwc2 = Rcw2.transpose();
             v3d twc1 = -1 * Rwc1 * tcw1;
@@ -947,11 +953,11 @@ namespace OPTIMIZE_LYJ
             v3d Pw2 = Rwc2 * Pc2 + twc2;
             err = Pw1 - Pw2;
 
-            //v3d tTmp1 = Pc1 - tcw1;
+            // v3d tTmp1 = Pc1 - tcw1;
             jacPc_Tcw1.block(0, 0, 3, 3) = -1 * Rwc1;
             jacPc_Tcw1.block(0, 3, 3, 3) = Rwc1 * OPTIMIZE_BASE::skew_symmetric(Pc1);
 
-            //v3d tTmp2 = Pc2 - tcw2;
+            // v3d tTmp2 = Pc2 - tcw2;
             jac_Pc_Tcw2.block(0, 0, 3, 3) = Rwc2;
             jac_Pc_Tcw2.block(0, 3, 3, 3) = -1 * Rwc2 * OPTIMIZE_BASE::skew_symmetric(Pc2);
             if (std::isnan(err.norm()) || std::isnan(jacPc_Tcw1.norm()) || std::isnan(jac_Pc_Tcw2.norm()))
@@ -963,21 +969,21 @@ namespace OPTIMIZE_LYJ
             return;
         }
         OPTIMIZE_LYJ_API void cal_jac_errPlanePc_Tcw(
-            const m34& Tcw, const v3d& Pc, const v4d& planew,
-            double& err, u6d& jacd_Tcw)
+            const m34 &Tcw, const v3d &Pc, const v4d &planew,
+            double &err, u6d &jacd_Tcw)
         {
-            const m33& Rcw = Tcw.block(0, 0, 3, 3);
-            const v3d& tcw = Tcw.block(0, 3, 3, 1);
+            const m33 &Rcw = Tcw.block(0, 0, 3, 3);
+            const v3d &tcw = Tcw.block(0, 3, 3, 1);
             m33 Rwc = Rcw.transpose();
             v3d twc = -1 * Rwc * tcw;
             v3d Pw = Rwc * Pc + twc;
 
             err = planew(0) * Pw(0) + planew(1) * Pw(1) + planew(2) * Pw(2) + planew(3);
 
-            const v3d& jacdedPw = planew.head(3);
+            const v3d &jacdedPw = planew.head(3);
 
             m36 jacdPwdTcw;
-            //v3d tTmp = Pc - tcw;
+            // v3d tTmp = Pc - tcw;
             jacdPwdTcw.block(0, 0, 3, 3) = -1 * Rwc;
             jacdPwdTcw.block(0, 3, 3, 3) = Rwc * OPTIMIZE_BASE::skew_symmetric(Pc);
 
@@ -986,14 +992,14 @@ namespace OPTIMIZE_LYJ
             return;
         }
         OPTIMIZE_LYJ_API void cal_jac_errPlanePc_Tcw_Tcw(
-            const m34& Tcw1, const v3d& Pc1, const v3d& nc1, 
-            const m34& Tcw2, const v3d& Pc2, const v3d& nc2, 
-            v2d& err, m26& jacd_Tcw1, m26& jacd_Tcw2)
+            const m34 &Tcw1, const v3d &Pc1, const v3d &nc1,
+            const m34 &Tcw2, const v3d &Pc2, const v3d &nc2,
+            v2d &err, m26 &jacd_Tcw1, m26 &jacd_Tcw2)
         {
-            const m33& Rcw1 = Tcw1.block(0, 0, 3, 3);
-            const m33& Rcw2 = Tcw2.block(0, 0, 3, 3);
-            const v3d& tcw1 = Tcw1.block(0, 3, 3, 1);
-            const v3d& tcw2 = Tcw2.block(0, 3, 3, 1);
+            const m33 &Rcw1 = Tcw1.block(0, 0, 3, 3);
+            const m33 &Rcw2 = Tcw2.block(0, 0, 3, 3);
+            const v3d &tcw1 = Tcw1.block(0, 3, 3, 1);
+            const v3d &tcw2 = Tcw2.block(0, 3, 3, 1);
             m33 Rwc1 = Rcw1.transpose();
             m33 Rwc2 = Rcw2.transpose();
             v3d twc1 = -1 * Rwc1 * tcw1;
@@ -1010,13 +1016,13 @@ namespace OPTIMIZE_LYJ
             v3d P21 = R21 * Pc1 + t21;
             v3d P12 = R12 * Pc2 + t12;
 
-            //err(0) = nw2.dot(Pw1 - Pw2);
-            //err(1) = nw1.dot(Pw2 - Pw1);
+            // err(0) = nw2.dot(Pw1 - Pw2);
+            // err(1) = nw1.dot(Pw2 - Pw1);
             err(0) = nc2.dot(R21 * Pc1 + t21 - Pc2);
             err(1) = nc1.dot(R12 * Pc2 + t12 - Pc1);
 
-            const v3d& jacdedPc1 = nc2;
-            //v3d tTmp1 = Pc1 - tcw1;
+            const v3d &jacdedPc1 = nc2;
+            // v3d tTmp1 = Pc1 - tcw1;
             m36 jacdPc1dTcw1;
             jacdPc1dTcw1.block(0, 0, 3, 3) = -1 * R21;
             jacdPc1dTcw1.block(0, 3, 3, 3) = R21 * OPTIMIZE_BASE::skew_symmetric(Pc1);
@@ -1026,7 +1032,7 @@ namespace OPTIMIZE_LYJ
             jacdPc1dTcw2.block(0, 3, 3, 3) = -1 * OPTIMIZE_BASE::skew_symmetric(P21);
             jacd_Tcw2.block(0, 0, 1, 6) = jacdedPc1.transpose() * jacdPc1dTcw2;
 
-            const v3d& jacdedPc2 = nc1;
+            const v3d &jacdedPc2 = nc1;
             m36 jacdPc2dTcw2;
             jacdPc2dTcw2.block(0, 0, 3, 3) = -1 * R12;
             jacdPc2dTcw2.block(0, 3, 3, 3) = R12 * OPTIMIZE_BASE::skew_symmetric(Pc2);
@@ -1039,12 +1045,12 @@ namespace OPTIMIZE_LYJ
             return;
         }
         OPTIMIZE_LYJ_API void cal_jac_errLPc_Tcw(
-            const m34& Tcw, const v3d& Pc, 
-            const v3d& LPw, const v3d& dirw, 
-            v3d& err, m36& jacd_Tcw)
+            const m34 &Tcw, const v3d &Pc,
+            const v3d &LPw, const v3d &dirw,
+            v3d &err, m36 &jacd_Tcw)
         {
-            const m33& Rcw = Tcw.block(0, 0, 3, 3);
-            const v3d& tcw = Tcw.block(0, 3, 3, 1);
+            const m33 &Rcw = Tcw.block(0, 0, 3, 3);
+            const v3d &tcw = Tcw.block(0, 3, 3, 1);
             m33 Rwc = Rcw.transpose();
             v3d twc = -1 * Rwc * tcw;
             v3d Pw = Rwc * Pc + twc;
@@ -1054,7 +1060,7 @@ namespace OPTIMIZE_LYJ
             err = jacdedPw * dP;
 
             m36 jacdPwdTcw;
-            //v3d tTmp = Pc - tcw;
+            // v3d tTmp = Pc - tcw;
             jacdPwdTcw.block(0, 0, 3, 3) = -1 * Rwc;
             jacdPwdTcw.block(0, 3, 3, 3) = Rwc * OPTIMIZE_BASE::skew_symmetric(Pc);
 
@@ -1062,14 +1068,14 @@ namespace OPTIMIZE_LYJ
             return;
         }
         OPTIMIZE_LYJ_API void cal_jac_errLPc_Tcw_Tcw(
-            const m34& Tcw1, const v3d& Pc1, const v3d& LPc1, const v3d& dirc1, 
-            const m34& Tcw2, const v3d& Pc2, const v3d& LPc2, const v3d& dirc2, 
-            v6d& err, m66& jacd_Tcw1, m66& jacd_Tcw2)
+            const m34 &Tcw1, const v3d &Pc1, const v3d &LPc1, const v3d &dirc1,
+            const m34 &Tcw2, const v3d &Pc2, const v3d &LPc2, const v3d &dirc2,
+            v6d &err, m66 &jacd_Tcw1, m66 &jacd_Tcw2)
         {
-            const m33& Rcw1 = Tcw1.block(0, 0, 3, 3);
-            const m33& Rcw2 = Tcw2.block(0, 0, 3, 3);
-            const v3d& tcw1 = Tcw1.block(0, 3, 3, 1);
-            const v3d& tcw2 = Tcw2.block(0, 3, 3, 1);
+            const m33 &Rcw1 = Tcw1.block(0, 0, 3, 3);
+            const m33 &Rcw2 = Tcw2.block(0, 0, 3, 3);
+            const v3d &tcw1 = Tcw1.block(0, 3, 3, 1);
+            const v3d &tcw2 = Tcw2.block(0, 3, 3, 1);
             m33 Rwc1 = Rcw1.transpose();
             m33 Rwc2 = Rcw2.transpose();
             v3d twc1 = -1 * Rwc1 * tcw1;
@@ -1094,7 +1100,7 @@ namespace OPTIMIZE_LYJ
             m36 jacdPc1dTcw1;
             jacdPc1dTcw1.block(0, 0, 3, 3) = -1 * R21;
             jacdPc1dTcw1.block(0, 3, 3, 3) = R21 * OPTIMIZE_BASE::skew_symmetric(Pc1);
-            jacd_Tcw1.block(0,0,3,3) = jacdedPc2.transpose() * jacdPc1dTcw1;
+            jacd_Tcw1.block(0, 0, 3, 3) = jacdedPc2.transpose() * jacdPc1dTcw1;
             m36 jacdPc1dTcw2;
             jacdPc1dTcw2.block(0, 0, 3, 3).setIdentity();
             jacdPc1dTcw2.block(0, 3, 3, 3) = -1 * OPTIMIZE_BASE::skew_symmetric(P21);
@@ -1111,8 +1117,8 @@ namespace OPTIMIZE_LYJ
 
             return;
         }
-    
-        void cal_jac_errL2D_Tcw_L3D(const m34& Tcw, const v4d& lineOrth, v2d& err, m26& jacT, m24& jacL, const m33& KK, const v4d& obs)
+
+        void cal_jac_errL2D_Tcw_L3D(const m34 &Tcw, const v4d &lineOrth, v2d &err, m26 &jacT, m24 &jacL, const m33 &KK, const v4d &obs)
         {
             v6d lineW = OPTIMIZE_BASE::orth_to_plk(lineOrth);
             m33 Rcw = Tcw.block(0, 0, 3, 3);
@@ -1150,16 +1156,16 @@ namespace OPTIMIZE_LYJ
             jacT = jaco_e_Lc * jaco_Lc_pose;
 
             m66 invTwc;
-            invTwc << Rcw, OPTIMIZE_BASE::skew_symmetric(tcw)* Rcw,
+            invTwc << Rcw, OPTIMIZE_BASE::skew_symmetric(tcw) * Rcw,
                 m33::Zero(), Rcw;
             v3d nw = lineW.head(3);
             v3d vw = lineW.tail(3);
             v3d u1 = nw / nw.norm();
             v3d u2 = vw / vw.norm();
             v3d u3 = u1.cross(u2);
-            //v2d w(nw.cross(vw).norm(), 1);
-             v2d wT(nw.norm(), vw.norm());
-             v2d w = wT / wT.norm();
+            // v2d w(nw.cross(vw).norm(), 1);
+            v2d wT(nw.norm(), vw.norm());
+            v2d w = wT / wT.norm();
             m64 jaco_Lw_orth;
             jaco_Lw_orth.setZero();
             jaco_Lw_orth.block(3, 0, 3, 1) = w(1) * u3;
