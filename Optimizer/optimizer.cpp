@@ -204,8 +204,8 @@ namespace OPTIMIZE_LYJ
         for (int i = 0; i < this->m_factors.size(); ++i)
         {
             auto factor = this->m_factors[i];
-            const auto& fId = factor->getId();
-            const auto& f2vs = this->m_factor2Vars[fId];
+            const auto &fId = factor->getId();
+            const auto &f2vs = this->m_factor2Vars[fId];
             if (checkEnable(this->m_vars, f2vs, factor))
             {
                 factor->setEnable(true);
@@ -231,13 +231,13 @@ namespace OPTIMIZE_LYJ
             auto factor = this->m_factors[i];
             if (!factor->isEnable())
                 continue;
-            const auto& fId = factor->getId();
-            const auto& f2vs = this->m_factor2Vars[fId];
+            const auto &fId = factor->getId();
+            const auto &f2vs = this->m_factor2Vars[fId];
             connectCnt = f2vs.size();
             eDim = factor->getEDim();
             for (int j = 0; j < connectCnt; ++j)
             {
-                const auto& vIdj = this->m_vars[f2vs.connectId(j)]->getId();
+                const auto &vIdj = this->m_vars[f2vs.connectId(j)]->getId();
                 if (this->m_vars[vIdj]->isFixed())
                     continue;
                 tanDim = this->m_vars[f2vs.connectId(j)]->getTangentDim();
@@ -270,10 +270,10 @@ namespace OPTIMIZE_LYJ
                 auto factor = this->m_factors[i];
                 if (!factor->isEnable())
                     continue;
-                const auto& fId = factor->getId();
-                const auto& fLoc = fLocs[fId];
+                const auto &fId = factor->getId();
+                const auto &fLoc = fLocs[fId];
                 eDim = factor->getEDim();
-                const auto& f2vs = this->m_factor2Vars[fId];
+                const auto &f2vs = this->m_factor2Vars[fId];
                 connectCnt = f2vs.size();
 
                 vars.resize(connectCnt);
@@ -284,21 +284,21 @@ namespace OPTIMIZE_LYJ
                 jacPtrs.resize(connectCnt);
                 for (int j = 0; j < connectCnt; ++j)
                 {
-                    const auto& vId = f2vs.connectId(j);
+                    const auto &vId = f2vs.connectId(j);
                     if (this->m_vars[vId]->isFixed())
                     {
                         jacPtrs[j] = nullptr;
                     }
                     else
                     {
-                        const auto& vLoc = vLocs[vId];
+                        const auto &vLoc = vLocs[vId];
                         tanDim = this->m_vars[vId]->getTangentDim();
                         jacs[j].resize(eDim, tanDim);
                         jacPtrs[j] = jacs[j].data();
                     }
                 }
 
-                double* errPtr = Err.data() + fLoc;
+                double *errPtr = Err.data() + fLoc;
                 factor->calculateErrAndJac(errPtr, jacPtrs.data(), 1, vars.data());
                 Eigen::Map<Eigen::VectorXd> errMap(Err.data() + fLoc, eDim);
                 _err += errMap.norm();
@@ -306,12 +306,12 @@ namespace OPTIMIZE_LYJ
 
                 for (int j = 0; j < connectCnt; ++j)
                 {
-                    const auto& vId = f2vs.connectId(j);
+                    const auto &vId = f2vs.connectId(j);
                     if (this->m_vars[vId]->isFixed())
                     {
                         continue;
                     }
-                    const auto& vLoc = vLocs[vId];
+                    const auto &vLoc = vLocs[vId];
                     tanDim = this->m_vars[vId]->getTangentDim();
                     for (int ii = 0; ii < eDim; ++ii)
                     {
@@ -324,29 +324,29 @@ namespace OPTIMIZE_LYJ
             }
             Jac.setFromTriplets(tripletLists.begin(), tripletLists.end());
             Jac.makeCompressed();
-            //firstA = false;
-            //int idx = 0;
-            //for (int c = 0; c < Jac.outerSize(); ++c) {
-            //    for (Eigen::SparseMatrix<double>::InnerIterator it(Jac, c); it; ++it) {
-            //        int r = it.row();
-            //        pos_map[{r, c}] = idx++;
-            //    }
-            //}
+            // firstA = false;
+            // int idx = 0;
+            // for (int c = 0; c < Jac.outerSize(); ++c) {
+            //     for (Eigen::SparseMatrix<double>::InnerIterator it(Jac, c); it; ++it) {
+            //         int r = it.row();
+            //         pos_map[{r, c}] = idx++;
+            //     }
+            // }
         }
         else
         {
-            //Jac.setZero();
-            double* val_ptr = Jac.valuePtr();
+            // Jac.setZero();
+            double *val_ptr = Jac.valuePtr();
             memset(val_ptr, 0, Jac.nonZeros() * sizeof(double));
             for (int i = 0; i < this->m_factors.size(); ++i)
             {
                 auto factor = this->m_factors[i];
                 if (!factor->isEnable())
                     continue;
-                const auto& fId = factor->getId();
-                const auto& fLoc = fLocs[fId];
+                const auto &fId = factor->getId();
+                const auto &fLoc = fLocs[fId];
                 eDim = factor->getEDim();
-                const auto& f2vs = this->m_factor2Vars[fId];
+                const auto &f2vs = this->m_factor2Vars[fId];
                 connectCnt = f2vs.size();
 
                 vars.resize(connectCnt);
@@ -357,21 +357,21 @@ namespace OPTIMIZE_LYJ
                 jacPtrs.resize(connectCnt);
                 for (int j = 0; j < connectCnt; ++j)
                 {
-                    const auto& vId = f2vs.connectId(j);
+                    const auto &vId = f2vs.connectId(j);
                     if (this->m_vars[vId]->isFixed())
                     {
                         jacPtrs[j] = nullptr;
                     }
                     else
                     {
-                        const auto& vLoc = vLocs[vId];
+                        const auto &vLoc = vLocs[vId];
                         tanDim = this->m_vars[vId]->getTangentDim();
                         jacs[j].resize(eDim, tanDim);
                         jacPtrs[j] = jacs[j].data();
                     }
                 }
 
-                double* errPtr = Err.data() + fLoc;
+                double *errPtr = Err.data() + fLoc;
                 factor->calculateErrAndJac(errPtr, jacPtrs.data(), 1, vars.data());
                 Eigen::Map<Eigen::VectorXd> errMap(Err.data() + fLoc, eDim);
                 _err += errMap.norm();
@@ -379,24 +379,23 @@ namespace OPTIMIZE_LYJ
 
                 for (int j = 0; j < connectCnt; ++j)
                 {
-                    const auto& vId = f2vs.connectId(j);
+                    const auto &vId = f2vs.connectId(j);
                     if (this->m_vars[vId]->isFixed())
                     {
                         continue;
                     }
-                    const auto& vLoc = vLocs[vId];
+                    const auto &vLoc = vLocs[vId];
                     tanDim = this->m_vars[vId]->getTangentDim();
                     for (int ii = 0; ii < eDim; ++ii)
                     {
                         for (int jj = 0; jj < tanDim; ++jj)
                         {
-                            const int& idx = pos_map[{fLoc + ii, vLoc + jj}];
+                            const int &idx = pos_map[{fLoc + ii, vLoc + jj}];
                             val_ptr[idx] += jacs[j](ii, jj);
                         }
                     }
                 }
             }
-
         }
 
         if (std::isnan(_err) || std::isinf(_err))
@@ -404,7 +403,6 @@ namespace OPTIMIZE_LYJ
         _err /= errCnt;
         if (errCnt == 0)
             std::cout << "cnt is 0" << std::endl;
-
 
         m_A = Jac.transpose() * Jac;
         m_B = -1 * Jac.transpose() * Err;
@@ -414,10 +412,17 @@ namespace OPTIMIZE_LYJ
     bool OptimizerLargeSparse::solveDetX()
     {
         // 创建求解器
+
         Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
         solver.compute(m_A);
         if (solver.info() != Eigen::Success)
         {
+            for (int i = 0; i < m_A.rows(); ++i)
+            {
+                /* code */
+                m_A.coeffRef(i, i) += 1e-6;
+            }
+
             std::cerr << "Decomposition failed!" << std::endl;
             return false;
         }
@@ -517,18 +522,18 @@ namespace OPTIMIZE_LYJ
             auto factor = this->m_factors[i];
             if (!factor->isEnable())
                 continue;
-            const auto& fId = factor->getId();
-            const auto& f2vs = this->m_factor2Vars[fId];
+            const auto &fId = factor->getId();
+            const auto &f2vs = this->m_factor2Vars[fId];
             connectCnt = f2vs.size();
             for (int j = 0; j < connectCnt; ++j)
             {
-                const auto& vIdj = this->m_vars[f2vs.connectId(j)]->getId();
+                const auto &vIdj = this->m_vars[f2vs.connectId(j)]->getId();
                 if (this->m_vars[vIdj]->isFixed())
                     continue;
                 tanDimj = this->m_vars[f2vs.connectId(j)]->getTangentDim();
                 for (int k = 0; k < connectCnt; ++k)
                 {
-                    const auto& vIdk = this->m_vars[f2vs.connectId(k)]->getId();
+                    const auto &vIdk = this->m_vars[f2vs.connectId(k)]->getId();
                     if (this->m_vars[vIdk]->isFixed())
                         continue;
                     tanDimk = this->m_vars[f2vs.connectId(k)]->getTangentDim();
@@ -558,7 +563,7 @@ namespace OPTIMIZE_LYJ
         int connectCnt = 0;
         int eDim;
 
-        for (auto& jtj : jtjs)
+        for (auto &jtj : jtjs)
             jtj.setZero();
 
         m_B.setZero();
@@ -649,14 +654,14 @@ namespace OPTIMIZE_LYJ
             {
                 if (colsMap[i].empty())
                     continue;
-                const auto& vId1 = i;
-                const auto& vInd1 = vLocs[vId1];
-                for (const auto& mm : colsMap[i])
+                const auto &vId1 = i;
+                const auto &vInd1 = vLocs[vId1];
+                for (const auto &mm : colsMap[i])
                 {
-                    const auto& vId2 = mm.first;
-                    const auto& vInd2 = vLocs[vId2];
-                    const auto& jtjInd = mm.second;
-                    const Eigen::MatrixXd& jtj = jtjs[jtjInd];
+                    const auto &vId2 = mm.first;
+                    const auto &vInd2 = vLocs[vId2];
+                    const auto &jtjInd = mm.second;
+                    const Eigen::MatrixXd &jtj = jtjs[jtjInd];
                     for (int ii = 0; ii < jtj.rows(); ++ii)
                     {
                         for (int jj = 0; jj < jtj.cols(); ++jj)
@@ -673,8 +678,10 @@ namespace OPTIMIZE_LYJ
             firstA = false;
 
             int idx = 0;
-            for (int c = 0; c < m_A.outerSize(); ++c) {
-                for (Eigen::SparseMatrix<double>::InnerIterator it(m_A, c); it; ++it) {
+            for (int c = 0; c < m_A.outerSize(); ++c)
+            {
+                for (Eigen::SparseMatrix<double>::InnerIterator it(m_A, c); it; ++it)
+                {
                     int r = it.row();
                     pos_map[{r, c}] = idx++;
                 }
@@ -682,29 +689,29 @@ namespace OPTIMIZE_LYJ
         }
         else
         {
-            double* val_ptr = m_A.valuePtr();
+            double *val_ptr = m_A.valuePtr();
             memset(val_ptr, 0, m_A.nonZeros() * sizeof(double));
             for (int i = 0; i < vSize; ++i)
             {
                 if (colsMap[i].empty())
                     continue;
-                const auto& vId1 = i;
-                const auto& vInd1 = vLocs[vId1];
-                for (const auto& mm : colsMap[i])
+                const auto &vId1 = i;
+                const auto &vInd1 = vLocs[vId1];
+                for (const auto &mm : colsMap[i])
                 {
-                    const auto& vId2 = mm.first;
-                    const auto& vInd2 = vLocs[vId2];
-                    const auto& jtjInd = mm.second;
-                    const Eigen::MatrixXd& jtj = jtjs[jtjInd];
+                    const auto &vId2 = mm.first;
+                    const auto &vInd2 = vLocs[vId2];
+                    const auto &jtjInd = mm.second;
+                    const Eigen::MatrixXd &jtj = jtjs[jtjInd];
                     for (int ii = 0; ii < jtj.rows(); ++ii)
                     {
                         for (int jj = 0; jj < jtj.cols(); ++jj)
                         {
-                            const int& idx = pos_map[{vInd1 + ii, vInd2 + jj}];
+                            const int &idx = pos_map[{vInd1 + ii, vInd2 + jj}];
                             val_ptr[idx] += jtj(ii, jj);
                             if (vId1 != vId2)
                             {
-                                const int& idx = pos_map[{vInd2 + jj, vInd1 + ii}];
+                                const int &idx = pos_map[{vInd2 + jj, vInd1 + ii}];
                                 val_ptr[idx] += jtj(ii, jj);
                             }
                         }
