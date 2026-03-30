@@ -18,9 +18,7 @@ namespace OPTIMIZE_LYJ
         // 通过 OptVar 继承
         bool update(double *_detX) override
         {
-            if (std::isnan(_detX[0]) || std::isnan(_detX[1]) || std::isnan(_detX[2])
-                || std::isinf(_detX[0]) || std::isinf(_detX[1]) || std::isinf(_detX[2])
-                )
+            if (std::isnan(_detX[0]) || std::isnan(_detX[1]) || std::isnan(_detX[2]) || std::isinf(_detX[0]) || std::isinf(_detX[1]) || std::isinf(_detX[2]))
             {
                 return false;
                 std::cout << _detX[0] << " " << _detX[1] << " " << _detX[2] << std::endl;
@@ -125,9 +123,13 @@ namespace OPTIMIZE_LYJ
             Eigen::Map<Eigen::Vector3d> t(m_data + 9, 3);
             Eigen::Map<Eigen::Matrix3d> R(m_data, 3, 3);
             Eigen::Map<Eigen::Vector3d> detr(_detX + 3, 3);
-            Eigen::Vector3d axis = detr.normalized();
             double theta = detr.norm();
-            Eigen::Matrix3d dR = Eigen::AngleAxisd(theta, axis).toRotationMatrix();
+            Eigen::Matrix3d dR = Eigen::Matrix3d::Identity();
+            if (theta > 1e-5)
+            {
+                Eigen::Vector3d axis = detr.normalized();
+                dR = Eigen::AngleAxisd(theta, axis).toRotationMatrix();
+            }
             // Eigen::Matrix3d dR = OPTIMIZE_BASE::ExpSO3(_detX[3], _detX[4], _detX[5]);
             R = dR * R;
             t = dett + dR * t;
@@ -195,7 +197,7 @@ namespace OPTIMIZE_LYJ
 
     public:
         // 通过 OptVar 继承
-        bool update(double* _detX) override
+        bool update(double *_detX) override
         {
             Eigen::Map<Eigen::Vector4d> orthW(m_data);
             Eigen::Vector3d theta = orthW.block(0, 0, 3, 1);
@@ -207,18 +209,18 @@ namespace OPTIMIZE_LYJ
             double s3 = sin(theta[2]);
             double c3 = cos(theta[2]);
             Eigen::Matrix3d R;
-            R << c2 * c3, s1* s2* c3 - c1 * s3, c1* s2* c3 + s1 * s3,
-                c2* s3, s1* s2* s3 + c1 * c3, c1* s2* s3 - s1 * c3,
-                -s2, s1* c2, c1* c2;
-            //double w1 = phi;
-            //double w2 = 1;
+            R << c2 * c3, s1 * s2 * c3 - c1 * s3, c1 * s2 * c3 + s1 * s3,
+                c2 * s3, s1 * s2 * s3 + c1 * c3, c1 * s2 * s3 - s1 * c3,
+                -s2, s1 * c2, c1 * c2;
+            // double w1 = phi;
+            // double w2 = 1;
             double w1 = cos(phi);
             double w2 = sin(phi);
             Eigen::Matrix2d W;
             W << w1, -w2, w2, w1;
 
             Eigen::Map<const Eigen::Vector3d> detTheta(_detX);
-            const double& detPhi = _detX[3];
+            const double &detPhi = _detX[3];
             Eigen::Matrix3d Rz;
             Rz << cos(detTheta(2)), -sin(detTheta(2)), 0,
                 sin(detTheta(2)), cos(detTheta(2)), 0,
@@ -232,11 +234,11 @@ namespace OPTIMIZE_LYJ
                 0, cos(detTheta(0)), -sin(detTheta(0)),
                 0, sin(detTheta(0)), cos(detTheta(0));
             Eigen::Matrix3d Rf = R * Rx * Ry * Rz;
-            //Eigen::Matrix2d W;
-            //W << w1, -w2, w2, w1;
-            //Eigen::Matrix2d Wf;
-            //Wf << w1 + detPhi, -1, 1, w1 + detPhi;
-            //Eigen::Vector4d thetaPlus;
+            // Eigen::Matrix2d W;
+            // W << w1, -w2, w2, w1;
+            // Eigen::Matrix2d Wf;
+            // Wf << w1 + detPhi, -1, 1, w1 + detPhi;
+            // Eigen::Vector4d thetaPlus;
             Eigen::Vector3d u1 = Rf.col(0);
             Eigen::Vector3d u2 = Rf.col(1);
             Eigen::Vector3d u3 = Rf.col(2);
@@ -244,15 +246,15 @@ namespace OPTIMIZE_LYJ
             double detw2 = sin(detPhi);
             Eigen::Matrix2d detW;
             detW << detw1, -detw2, detw2, detw1;
-            //thetaPlus[0] = atan2(u2(2), u3(2));
-            //thetaPlus[1] = asin(-u1(2));
-            //thetaPlus[2] = atan2(u1(1), u1(0));
-            //thetaPlus[3] = Wf(0, 0);
-            //Eigen::Matrix<double, 6 ,1> line = OPTIMIZE_BASE::orth_to_line(thetaPlus);
-            //Eigen::Vector3d P1 = line.head(3);
-            //Eigen::Vector3d V = line.tail(3);
-            //Eigen::Vector3d P2 = P1 + V * 3;
-            //P1 = P2 - V * 6;
+            // thetaPlus[0] = atan2(u2(2), u3(2));
+            // thetaPlus[1] = asin(-u1(2));
+            // thetaPlus[2] = atan2(u1(1), u1(0));
+            // thetaPlus[3] = Wf(0, 0);
+            // Eigen::Matrix<double, 6 ,1> line = OPTIMIZE_BASE::orth_to_line(thetaPlus);
+            // Eigen::Vector3d P1 = line.head(3);
+            // Eigen::Vector3d V = line.tail(3);
+            // Eigen::Vector3d P2 = P1 + V * 3;
+            // P1 = P2 - V * 6;
 
             m_data[0] = atan2(u2(2), u3(2));
             m_data[1] = asin(-u1(2));
@@ -267,7 +269,7 @@ namespace OPTIMIZE_LYJ
         {
             return Eigen::Map<const Eigen::Vector4d>(m_data, 4);
         }
-        friend std::ostream& operator<<(std::ostream& os, const OptVarLine3d& cls)
+        friend std::ostream &operator<<(std::ostream &os, const OptVarLine3d &cls)
         {
             std::cout << "(" << cls.m_data[0] << ", " << cls.m_data[1] << ", " << cls.m_data[2] << ", " << cls.m_data[3] << ")";
             return os;
