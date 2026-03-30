@@ -413,7 +413,15 @@ namespace OPTIMIZE_LYJ
     }
     bool OptimizerLargeSparse::solveDetX()
     {
-        // 创建求解器
+        //// 创建求解器// 给对角线加一个极小值，让矩阵正定
+        //for (int i = 0; i < m_A.rows(); ++i) {
+        //    m_A.coeffRef(i, i) += 1e-6;  // 必须加！
+        //}
+        //bool is_sym = m_A.isApprox(m_A.transpose());
+        //if (!is_sym)
+        //    std::cout << "A is not sym" << std::endl;
+        m_A.makeCompressed();
+        // 如果 is_sym = false → 必崩
         Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
         solver.compute(m_A);
         if (solver.info() != Eigen::Success)
